@@ -22,6 +22,12 @@ the exact value sets, which mirror these one-to-one.
 - **routes** — a day's delivery run, optionally assigned to a `driver_id`.
 - **route_stops** — ordered stops on a route; denormalizes customer
   name/address so a driver's app never needs `customers` access directly.
+- **packages** — one row per physical package within a `route_stop`, each
+  with its own unique `code` and `qr_payload`, generated once client-side
+  at creation time and never regenerated. `label_printed`/`printed_at`/
+  `print_count` track printing; reprinting only ever updates these fields
+  on the existing row (see `increment_package_print()` below) — it never
+  inserts a new package.
 - **returns** — failed/returned deliveries, linked back to a stop/route.
 - **availability** — per-driver, per-day shift/time-off calendar.
 - **notifications** — targeted at `target_user_id` OR broadcast to
@@ -51,6 +57,24 @@ Policy shape, per table:
   create only their own.
 - `notifications` — visible if `target_user_id = auth.uid()` or the row is a
   broadcast whose `target_roles` includes the caller's role.
+- `packages` — same visibility split as `route_stops` (back-office roles see
+  everything, a driver sees only their own route's packages), but writes go
+  exclusively through the `increment_package_print()` RPC (below) — there is
+  no general-purpose update policy for print bookkeeping.
+
+## Route confirmation integrity
+
+Two extra safeguards enforce "every label must be printed before a route is
+confirmed" at the database level, not just in the UI:
+
+- `increment_package_print(p_package_id uuid)` — a `security definer` RPC
+  that is the *only* way a package's `label_printed`/`printed_at`/
+  `print_count` change. It updates the existing row in place, so printing
+  and reprinting are the same idempotent operation and can never create a
+  duplicate package.
+- `routes_check_labels_before_confirm` — a `before update` trigger on
+  `routes` that raises an exception if a route is moved out of `draft`
+  while any of its packages still has `label_printed = false`.
 
 ## Demo accounts
 

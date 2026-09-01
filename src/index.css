@@ -172,6 +172,24 @@
   }
 }
 
+.print-portal {
+  display: none;
+}
+
+@media print {
+  body.printing-label > #root {
+    display: none !important;
+  }
+  body.printing-label > .print-portal {
+    display: flex !important;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+  @page {
+    margin: 0.4in;
+  }
+}
+
 @layer utilities {
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;

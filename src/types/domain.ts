@@ -83,6 +83,19 @@ export interface RouteStop {
   failureReason?: string
 }
 
+export interface Package {
+  id: string
+  routeId: string
+  stopId: string
+  sequence: number
+  code: string
+  qrPayload: string
+  labelPrinted: boolean
+  printedAt?: string
+  printCount: number
+  createdAt: string
+}
+
 export interface DeliveryRoute {
   id: string
   name: string

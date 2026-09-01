@@ -37,7 +37,14 @@ const EMPTY = {
   active: true,
 }
 
-export function CustomerFormDialog({ customer }: { customer?: Customer }) {
+export function CustomerFormDialog({
+  customer,
+  onCreated,
+}: {
+  customer?: Customer
+  /** Called with the newly created customer (create mode only), in addition to the normal cache invalidation. */
+  onCreated?: (customer: Customer) => void
+}) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(EMPTY)
@@ -75,7 +82,8 @@ export function CustomerFormDialog({ customer }: { customer?: Customer }) {
       if (customer) {
         await updateCustomer.mutateAsync({ id: customer.id, input: form })
       } else {
-        await createCustomer.mutateAsync(form)
+        const created = await createCustomer.mutateAsync(form)
+        onCreated?.(created)
       }
       toast.success(t('common.success'))
       setOpen(false)

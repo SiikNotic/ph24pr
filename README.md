@@ -14,6 +14,22 @@ drivers in the field — working from the same real-time data.
 - **react-i18next** — fully bilingual UI (English / Spanish)
 - **Recharts** for reporting
 
+## Route creation workflow
+
+Creating a route is a guided, three-step process (Routes → New Route):
+
+1. **Deliveries** — name the route (e.g. "Route 1", "Pharmacy Route"), then
+   add a delivery per customer, picking an existing one or creating a new
+   customer record inline. Each delivery mints one uniquely identified,
+   QR-coded package per unit, generated once and never re-created.
+2. **Print Labels** — every package's label must be printed before moving
+   on. If a print fails or a label is damaged, "Reprint Label" reprints the
+   exact same package code/QR — it never creates a duplicate package or
+   delivery. Enforced both in the UI and by a database trigger.
+3. **Confirm & Assign** — once every label is printed, the manager confirms
+   the route, then assigns a driver. The driver never has to accept
+   anything: as soon as they're assigned, the route shows up in their app.
+
 ## Getting started
 
 ```bash

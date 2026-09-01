@@ -30,55 +30,76 @@ export function useRoute(id: string | undefined) {
   })
 }
 
-interface NewStopInput {
-  customerId: string
-  customerName: string
-  address: string
-  priority: string
-  packageCount: number
-  isControlledSubstance: boolean
-  requiresSignature: boolean
-}
-
-export function useCreateRoute() {
+// Step 1 of the route workflow: the manager just picks an internal name and
+// a date. The route is created as 'draft' — deliveries, packages, and
+// labels are all added afterwards in the route builder.
+export function useCreateRouteShell() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { name: string; date: string; driverId?: string | null; stops: NewStopInput[] }) => {
-      const { data: route, error } = await supabase
+    mutationFn: async (input: { name: string; date: string }) => {
+      const { data, error } = await supabase
         .from('routes')
-        .insert({ name: input.name, date: input.date, driver_id: input.driverId || null, status: 'scheduled' })
+        .insert({ name: input.name, date: input.date, status: 'draft' })
         .select()
         .single()
       if (error) throw error
-      if (input.stops.length) {
-        const rows = input.stops.map((s, i) => ({
-          route_id: route.id,
-          sequence: i + 1,
-          customer_id: s.customerId,
-          customer_name: s.customerName,
-          address: s.address,
-          priority: s.priority,
-          package_count: s.packageCount,
-          is_controlled_substance: s.isControlledSubstance,
-          requires_signature: s.requiresSignature,
-        }))
-        const { error: stopsError } = await supabase.from('route_stops').insert(rows)
-        if (stopsError) throw stopsError
-      }
-      return route
+      return data as { id: string }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['routes'] }),
+  })
+}
+
+// Confirms a route (draft -> scheduled). The database itself refuses this
+// transition if any package's label hasn't been printed yet (see the
+// routes_check_labels_before_confirm trigger), so this is defense in depth
+// on top of the UI's own gating.
+export function useConfirmRoute() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (routeId: string) => {
+      const { error } = await supabase.from('routes').update({ status: 'scheduled' }).eq('id', routeId)
+      if (error) throw error
+    },
+    onSuccess: (_data, routeId) => {
+      qc.invalidateQueries({ queryKey: ['routes'] })
+      qc.invalidateQueries({ queryKey: ['route', routeId] })
+    },
   })
 }
 
 export function useAssignDriver() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ routeId, driverId }: { routeId: string; driverId: string | null }) => {
+    mutationFn: async ({
+      routeId,
+      routeName,
+      driverId,
+      driverProfileId,
+    }: {
+      routeId: string
+      routeName?: string
+      driverId: string | null
+      driverProfileId?: string | null
+    }) => {
       const { error } = await supabase.from('routes').update({ driver_id: driverId }).eq('id', routeId)
       if (error) throw error
+
+      // The driver never has to accept anything — assigning is enough for
+      // the route to show up in their app. A notification just surfaces it.
+      if (driverId && driverProfileId) {
+        await supabase.from('notifications').insert({
+          type: 'route_assigned',
+          title: 'New route assigned',
+          body: routeName ? `${routeName} has been assigned to you.` : 'A new route has been assigned to you.',
+          target_user_id: driverProfileId,
+        })
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['routes'] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['routes'] })
+      qc.invalidateQueries({ queryKey: ['route', variables.routeId] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
   })
 }
 

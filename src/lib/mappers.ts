@@ -4,6 +4,7 @@ import type {
   Driver,
   DeliveryRoute,
   RouteStop,
+  Package,
   ReturnItem,
   AvailabilityEntry,
   AppNotification,
@@ -91,6 +92,21 @@ export function mapRoute(row: any): DeliveryRoute {
     completedAt: row.completed_at ?? undefined,
     estimatedDistanceKm: row.estimated_distance_km ?? undefined,
     estimatedDurationMin: row.estimated_duration_min ?? undefined,
+  }
+}
+
+export function mapPackage(row: any): Package {
+  return {
+    id: row.id,
+    routeId: row.route_id,
+    stopId: row.stop_id,
+    sequence: row.sequence,
+    code: row.code,
+    qrPayload: row.qr_payload,
+    labelPrinted: row.label_printed,
+    printedAt: row.printed_at ?? undefined,
+    printCount: row.print_count,
+    createdAt: row.created_at,
   }
 }
 

@@ -10,6 +10,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import RoutesPage from '@/pages/Routes'
+import RouteBuilder from '@/pages/RouteBuilder'
 import Customers from '@/pages/Customers'
 import Drivers from '@/pages/Drivers'
 import Returns from '@/pages/Returns'
@@ -54,6 +55,14 @@ export default function App() {
                   element={
                     <RequireSection section="routes">
                       <RoutesPage />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="routes/:routeId/build"
+                  element={
+                    <RequireSection section="routes">
+                      <RouteBuilder />
                     </RequireSection>
                   }
                 />

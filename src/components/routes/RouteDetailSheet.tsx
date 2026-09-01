@@ -65,7 +65,14 @@ export function RouteDetailSheet({
               <div className="flex items-center gap-2">
                 <Select
                   value={route.driverId ?? 'unassigned'}
-                  onValueChange={(v) => assignDriver.mutate({ routeId: route.id, driverId: v === 'unassigned' ? null : v })}
+                  onValueChange={(v) =>
+                    assignDriver.mutate({
+                      routeId: route.id,
+                      routeName: route.name,
+                      driverId: v === 'unassigned' ? null : v,
+                      driverProfileId: drivers.find((d) => d.id === v)?.profileId,
+                    })
+                  }
                 >
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder={t('common.unassigned')} />

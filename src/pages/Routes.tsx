@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Route as RouteIcon, Trash2 } from 'lucide-react'
+import { Route as RouteIcon, Trash2, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -22,6 +23,7 @@ const STATUS_FILTERS: (RouteStatus | 'all')[] = ['all', 'draft', 'scheduled', 'i
 
 export default function RoutesPage() {
   const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
   const { can, isDriver } = usePermissions()
   const [date, setDate] = useState(todayISODate())
   const [showAllDates, setShowAllDates] = useState(false)
@@ -94,7 +96,11 @@ export default function RoutesPage() {
               <Card
                 key={route.id}
                 className="cursor-pointer transition-shadow hover:shadow-md"
-                onClick={() => setSelected(route)}
+                onClick={() =>
+                  route.status === 'draft' && can('routes', 'create')
+                    ? navigate(`/routes/${route.id}/build`)
+                    : setSelected(route)
+                }
               >
                 <CardContent className="flex flex-col gap-3 p-4">
                   <div className="flex items-start justify-between gap-2">
@@ -119,6 +125,12 @@ export default function RoutesPage() {
                       </span>
                     )}
                   </div>
+
+                  {route.status === 'draft' && can('routes', 'create') && (
+                    <p className="flex items-center gap-1 text-xs font-medium text-primary">
+                      {t('routeBuilder.continueSetup')} <ArrowRight className="h-3 w-3" />
+                    </p>
+                  )}
 
                   {can('routes', 'delete') && (
                     <Button

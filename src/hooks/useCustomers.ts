@@ -38,8 +38,9 @@ export function useCreateCustomer() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input: CustomerInput) => {
-      const { error } = await supabase.from('customers').insert(toRow(input))
+      const { data, error } = await supabase.from('customers').insert(toRow(input)).select().single()
       if (error) throw error
+      return mapCustomer(data)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
   })
