@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { mapRoute, mapAssignmentEvent, mapStop, mapAddressHistoryEvent } from '@/lib/mappers'
+import { mapRoute, mapAssignmentEvent, mapStop, mapAddressHistoryEvent, mapAuditLogEvent } from '@/lib/mappers'
 import type { ReassignmentReason, ReturnReason, RouteStatus } from '@/types/domain'
 
 // Explicit column list (never `*`) so this never touches route_stops's
@@ -64,20 +64,27 @@ export function useCreateRouteShell() {
   })
 }
 
-// Confirms a route (draft -> scheduled). The database itself refuses this
-// transition if any package's label hasn't been printed yet (see the
-// routes_check_labels_before_confirm trigger), so this is defense in depth
-// on top of the UI's own gating.
-export function useConfirmRoute() {
+// The only path that ever changes a route's status (confirm, start, head
+// back to the station, complete, close). The database validates every
+// transition itself — e.g. it refuses 'confirmed' unless every label has
+// already been printed — so this is defense in depth on top of the UI's
+// own gating, not the actual guarantee. Entering 'active' also bulk-moves
+// every not-yet-attempted stop/package to 'out_for_delivery' server-side.
+export function useUpdateRouteStatus() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (routeId: string) => {
-      const { error } = await supabase.from('routes').update({ status: 'scheduled' }).eq('id', routeId)
+    mutationFn: async ({ routeId, status, reason }: { routeId: string; status: RouteStatus; reason?: string }) => {
+      const { error } = await supabase.rpc('update_route_status', {
+        p_route_id: routeId,
+        p_new_status: status,
+        p_reason: reason || null,
+      })
       if (error) throw error
     },
-    onSuccess: (_data, routeId) => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['routes'] })
-      qc.invalidateQueries({ queryKey: ['route', routeId] })
+      qc.invalidateQueries({ queryKey: ['route', variables.routeId] })
+      qc.invalidateQueries({ queryKey: ['audit_log', variables.routeId] })
     },
   })
 }
@@ -134,20 +141,6 @@ export function useRouteAssignmentHistory(routeId: string | undefined) {
       if (error) throw error
       return data.map(mapAssignmentEvent)
     },
-  })
-}
-
-export function useUpdateRouteStatus() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ routeId, status }: { routeId: string; status: RouteStatus }) => {
-      const patch: Record<string, any> = { status }
-      if (status === 'in_progress') patch.started_at = new Date().toISOString()
-      if (status === 'completed') patch.completed_at = new Date().toISOString()
-      const { error } = await supabase.from('routes').update(patch).eq('id', routeId)
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['routes'] }),
   })
 }
 
@@ -271,6 +264,26 @@ export function useStopAddressHistory(stopId: string | undefined) {
         .order('created_at', { ascending: false })
       if (error) throw error
       return data.map(mapAddressHistoryEvent)
+    },
+  })
+}
+
+// The unified, cross-entity audit trail for a route: driver changes,
+// address changes, label reprints, delivery completions/failures, returns,
+// and route status changes, all in one chronological feed. Every row is
+// permanent — nothing here is ever updated or deleted.
+export function useAuditLog(routeId: string | undefined) {
+  return useQuery({
+    queryKey: ['audit_log', routeId],
+    enabled: !!routeId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('audit_log')
+        .select('*')
+        .eq('route_id', routeId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data.map(mapAuditLogEvent)
     },
   })
 }

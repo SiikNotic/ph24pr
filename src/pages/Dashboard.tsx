@@ -42,7 +42,9 @@ export default function Dashboard() {
   const { data: notifications = [] } = useNotifications()
 
   if (isDriver) {
-    const myRoute = routes.find((r) => r.status === 'in_progress') ?? routes.find((r) => r.status === 'scheduled')
+    const myRoute =
+      routes.find((r) => r.status === 'active' || r.status === 'returning_to_station') ??
+      routes.find((r) => r.status === 'assigned')
     const stops = myRoute?.stops ?? []
     const completed = stops.filter((s) => s.status === 'delivered').length
     const controlled = stops.filter((s) => s.isControlledSubstance).length
@@ -98,7 +100,7 @@ export default function Dashboard() {
     )
   }
 
-  const activeRoutes = routes.filter((r) => r.status === 'in_progress' || r.status === 'scheduled')
+  const activeRoutes = routes.filter((r) => r.status === 'active' || r.status === 'assigned' || r.status === 'returning_to_station')
   const allStopsToday = routes.flatMap((r) => r.stops)
   const deliveredToday = allStopsToday.filter((s) => s.status === 'delivered').length
   const failedToday = allStopsToday.filter((s) => s.status === 'failed' || s.status === 'pending_return').length

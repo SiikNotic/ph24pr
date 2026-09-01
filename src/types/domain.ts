@@ -59,12 +59,40 @@ export interface Driver {
   createdAt: string
 }
 
-export type RouteStatus = 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'canceled'
+// The full route lifecycle. 'canceled' is legacy (kept for old data; no UI
+// path produces it). See supabase/schema-notes.md for the exact transition
+// graph — each arrow only ever fires through update_route_status(),
+// reassign_route_driver(), or increment_package_print().
+//   draft -> labels_pending/labels_printed (automatic, as labels print)
+//   labels_printed -> confirmed (manager confirms)
+//   confirmed -> assigned (automatic, on the first driver assignment)
+//   assigned -> active -> returning_to_station -> completed -> closed
+export type RouteStatus =
+  | 'draft'
+  | 'labels_pending'
+  | 'labels_printed'
+  | 'confirmed'
+  | 'assigned'
+  | 'active'
+  | 'returning_to_station'
+  | 'completed'
+  | 'closed'
+  | 'canceled'
+
+// The route statuses a manager is still actively building the route
+// through (adding deliveries, printing labels) — before it's confirmed.
+export const BUILDING_ROUTE_STATUSES: RouteStatus[] = ['draft', 'labels_pending', 'labels_printed']
+
 // 'failed' is legacy (pre failed-delivery-handling data) and no longer
 // produced by the app: a failed attempt now goes straight to
 // 'pending_return' (the driver still has the package). 'returned' means the
-// package has physically come back to the station.
-export type StopStatus = 'pending' | 'en_route' | 'delivered' | 'failed' | 'pending_return' | 'returned'
+// package has physically come back to the station. Note: 'out_for_delivery'
+// is set the moment the route goes active (the driver has it and is
+// driving); 'scanned' happens later, at the door, right before proof of
+// delivery — the enum's declared order (matching the app's package/delivery
+// status vocabulary) lists 'scanned' first, but that's just its label
+// ordering, not the actual sequence.
+export type StopStatus = 'pending' | 'scanned' | 'out_for_delivery' | 'delivered' | 'failed' | 'pending_return' | 'returned'
 export type Priority = 'standard' | 'urgent' | 'stat'
 
 // The proof required to complete a delivery, configured per delivery
@@ -124,6 +152,38 @@ export interface StopAddressHistoryEvent {
   createdAt: string
 }
 
+export type AuditEntityType = 'route' | 'route_stop' | 'package' | 'return'
+export type AuditAction =
+  | 'route_status_changed'
+  | 'driver_changed'
+  | 'address_changed'
+  | 'label_printed'
+  | 'package_scanned'
+  | 'delivery_completed'
+  | 'delivery_failed'
+  | 'return_received'
+  | 'return_resolved'
+
+// The unified, cross-entity audit trail — every status/ownership/location
+// change the system records, never updated or deleted. The
+// specific-purpose history tables (RouteAssignmentEvent,
+// StopAddressHistoryEvent) still back their own detail panels; this is the
+// comprehensive feed shown per-route.
+export interface AuditLogEvent {
+  id: string
+  entityType: AuditEntityType
+  entityId: string
+  routeId?: string
+  action: AuditAction
+  previousState?: string
+  newState?: string
+  actorId?: string
+  actorName?: string
+  actorRole?: Role
+  notes?: string
+  createdAt: string
+}
+
 export interface Package {
   id: string
   routeId: string
@@ -135,6 +195,7 @@ export interface Package {
   printedAt?: string
   printCount: number
   scannedAt?: string
+  status: StopStatus
   createdAt: string
 }
 

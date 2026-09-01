@@ -82,7 +82,7 @@ export default function DeliveryFlow() {
   function goToNextStop() {
     if (!route) return
     const remaining = route.stops
-      .filter((s) => s.id !== stopId && (s.status === 'pending' || s.status === 'en_route'))
+      .filter((s) => s.id !== stopId && (s.status === 'pending' || s.status === 'out_for_delivery' || s.status === 'scanned'))
       .sort((a, b) => a.sequence - b.sequence)
     if (remaining.length > 0) {
       navigate(`/routes/${routeId}/deliver/${remaining[0].id}`)

@@ -17,9 +17,21 @@ import { useRoutes, useDeleteRoute } from '@/hooks/useRoutes'
 import { CreateRouteDialog } from '@/components/routes/CreateRouteDialog'
 import { RouteDetailSheet } from '@/components/routes/RouteDetailSheet'
 import { todayISODate, formatDate } from '@/lib/format'
+import { BUILDING_ROUTE_STATUSES } from '@/types/domain'
 import type { DeliveryRoute, RouteStatus } from '@/types/domain'
 
-const STATUS_FILTERS: (RouteStatus | 'all')[] = ['all', 'draft', 'scheduled', 'in_progress', 'completed', 'canceled']
+const STATUS_FILTERS: (RouteStatus | 'all')[] = [
+  'all',
+  'draft',
+  'labels_pending',
+  'labels_printed',
+  'confirmed',
+  'assigned',
+  'active',
+  'returning_to_station',
+  'completed',
+  'closed',
+]
 
 export default function RoutesPage() {
   const { t, i18n } = useTranslation()
@@ -97,7 +109,7 @@ export default function RoutesPage() {
                 key={route.id}
                 className="cursor-pointer transition-shadow hover:shadow-md"
                 onClick={() =>
-                  route.status === 'draft' && can('routes', 'create')
+                  BUILDING_ROUTE_STATUSES.includes(route.status) && can('routes', 'create')
                     ? navigate(`/routes/${route.id}/build`)
                     : setSelected(route)
                 }
@@ -126,7 +138,7 @@ export default function RoutesPage() {
                     )}
                   </div>
 
-                  {route.status === 'draft' && can('routes', 'create') && (
+                  {BUILDING_ROUTE_STATUSES.includes(route.status) && can('routes', 'create') && (
                     <p className="flex items-center gap-1 text-xs font-medium text-primary">
                       {t('routeBuilder.continueSetup')} <ArrowRight className="h-3 w-3" />
                     </p>

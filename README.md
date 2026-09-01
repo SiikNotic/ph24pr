@@ -30,19 +30,51 @@ Creating a route is a guided, three-step process (Routes → New Route):
    the route, then assigns a driver. The driver never has to accept
    anything: as soon as they're assigned, the route shows up in their app.
 
+## Route lifecycle
+
+A route moves through nine statuses, each one only ever set by a validated
+database transition — never a plain client-side write:
+
+`Draft → Labels Pending → Labels Printed → Confirmed → Assigned → Active →
+Returning to Station → Completed → Closed`
+
+The first three advance automatically as labels get printed. A manager
+confirms once every label is printed; assigning a driver for the first time
+automatically moves it to Assigned; from there, "Start route", "Returning
+to station", and "Complete route" walk it the rest of the way — available
+to the assigned driver or dispatch+. Only Owners/General Managers can
+"Close route" once it's completed, archiving it for good. Every delivery
+(package) has its own parallel lifecycle — Pending → Out for Delivery →
+Scanned → Delivered, or Pending Return → Returned for a failed one — kept
+in exact step with the driver's actual workflow (scanning still happens at
+the door, right before proof of delivery, unchanged from before).
+
+## Audit trail
+
+Every status change, driver reassignment, address correction, label
+reprint, delivery completion or failure, and return is permanently
+recorded — never overwritten, never deleted. Each entry captures who made
+the change, their role, when, the previous state, the new state, and which
+route/stop/package/return it belongs to. Open any route to see its full
+**Audit Log**, right alongside the route's own Assignment History and each
+delivery's Address History (which keep their own focused, dedicated
+panels — the Audit Log is the comprehensive, cross-entity feed of
+everything).
+
 ## Reassigning a route
 
-Dispatch, General Managers, and Owners can reassign a **confirmed or
-active** route to a different driver at any time — a driver calling in
-sick, going unavailable, leaving early, abandoning the route, or another
-driver simply taking over. Open the route → "Reassign Driver", pick the new
-driver and a reason. The new driver takes over exactly where the route
-stands: scanned packages, completed deliveries, and all progress carry over
-untouched — nothing is reset, no duplicate package or route is ever
-created. Every change (previous driver, new driver, who made it, when, and
-the route's status at the time) is recorded in the route's Assignment
-History, enforced at the database level by a dedicated
-`reassign_route_driver()` function rather than a plain client-side update.
+Dispatch, General Managers, and Owners can reassign a route — from the
+moment it's confirmed all the way through to heading back to the station —
+to a different driver at any time: a driver calling in sick, going
+unavailable, leaving early, abandoning the route, or another driver simply
+taking over. Open the route → "Reassign Driver", pick the new driver and a
+reason. The new driver takes over exactly where the route stands: scanned
+packages, completed deliveries, and all progress carry over untouched —
+nothing is reset, no duplicate package or route is ever created. Every
+change (previous driver, new driver, who made it, when, and the route's
+status at the time) is recorded in the route's Assignment History, enforced
+at the database level by a dedicated `reassign_route_driver()` function
+rather than a plain client-side update.
 
 ## Time off requests
 

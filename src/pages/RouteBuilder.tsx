@@ -21,7 +21,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useRoute, useConfirmRoute, useReassignDriver } from '@/hooks/useRoutes'
+import { useRoute, useUpdateRouteStatus, useReassignDriver } from '@/hooks/useRoutes'
+import { BUILDING_ROUTE_STATUSES } from '@/types/domain'
 import { usePackages } from '@/hooks/usePackages'
 import { useRemoveDelivery } from '@/hooks/usePackages'
 import { useDrivers } from '@/hooks/useDrivers'
@@ -46,14 +47,16 @@ export default function RouteBuilder() {
   const { data: drivers = [] } = useDrivers()
   const unavailableDriverIds = useUnavailableDriverIds(route?.date)
   const removeDelivery = useRemoveDelivery()
-  const confirmRoute = useConfirmRoute()
+  const updateRouteStatus = useUpdateRouteStatus()
   const reassignDriver = useReassignDriver()
 
-  const isDraft = route?.status === 'draft'
+  // 'draft' | 'labels_pending' | 'labels_printed' -- the manager is still
+  // actively building the route (adding deliveries, printing labels).
+  const isDraft = !!route && BUILDING_ROUTE_STATUSES.includes(route.status)
   const allPrinted = packages.length > 0 && packages.every((p) => p.labelPrinted)
 
   useEffect(() => {
-    if (route && route.status !== 'draft') setStep('confirm')
+    if (route && !BUILDING_ROUTE_STATUSES.includes(route.status)) setStep('confirm')
   }, [route?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!can('routes', 'create')) {
@@ -75,7 +78,7 @@ export default function RouteBuilder() {
   async function handleConfirm() {
     if (!routeId) return
     try {
-      await confirmRoute.mutateAsync(routeId)
+      await updateRouteStatus.mutateAsync({ routeId, status: 'confirmed' })
       toast.success(t('routeBuilder.confirmed'))
     } catch (e: any) {
       toast.error(e.message ?? t('common.error'))
@@ -246,8 +249,8 @@ export default function RouteBuilder() {
                 <p className="text-sm text-muted-foreground">
                   {allPrinted ? t('routeBuilder.confirmHint') : t('routeBuilder.needAllLabelsPrinted')}
                 </p>
-                <Button size="lg" onClick={handleConfirm} disabled={!allPrinted || confirmRoute.isPending}>
-                  {confirmRoute.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                <Button size="lg" onClick={handleConfirm} disabled={!allPrinted || updateRouteStatus.isPending}>
+                  {updateRouteStatus.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                   <Check className="h-4 w-4" /> {t('routeBuilder.confirmRoute')}
                 </Button>
               </CardContent>

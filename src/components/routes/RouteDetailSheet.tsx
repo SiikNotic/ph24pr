@@ -17,6 +17,8 @@ import {
   Timer,
   MapPinOff,
   MapPinCheck,
+  Undo2,
+  Lock,
 } from 'lucide-react'
 import {
   Sheet,
@@ -46,6 +48,7 @@ import { useOrgSettings } from '@/hooks/useSettings'
 import { ReassignDriverDialog } from '@/components/routes/ReassignDriverDialog'
 import { AssignmentHistoryList } from '@/components/routes/AssignmentHistoryList'
 import { AddressHistoryList } from '@/components/routes/AddressHistoryList'
+import { AuditLogList } from '@/components/routes/AuditLogList'
 import { RETURN_REASONS } from '@/lib/returnReasons'
 import type { DeliveryRoute, ReturnReason, RouteStop } from '@/types/domain'
 import { formatDate, formatDateTime } from '@/lib/format'
@@ -60,7 +63,7 @@ export function RouteDetailSheet({
   onOpenChange: (open: boolean) => void
 }) {
   const { t, i18n } = useTranslation()
-  const { can, isDriver } = usePermissions()
+  const { can, isDriver, isManager } = usePermissions()
   const updateRouteStatus = useUpdateRouteStatus()
   const [issueStop, setIssueStop] = useState<RouteStop | null>(null)
   const [addressIssueStop, setAddressIssueStop] = useState<RouteStop | null>(null)
@@ -69,7 +72,8 @@ export function RouteDetailSheet({
   if (!route) return null
 
   const canManage = can('routes', 'assign')
-  const canReassign = canManage && (route.status === 'scheduled' || route.status === 'in_progress')
+  const canReassign =
+    canManage && ['confirmed', 'assigned', 'active', 'returning_to_station'].includes(route.status)
   const canRunRoute = canManage || isDriver
 
   return (
@@ -92,16 +96,25 @@ export function RouteDetailSheet({
               <div className="flex flex-wrap items-center gap-2">
                 {canManage && <p className="flex-1 text-sm font-medium">{route.driverName ?? t('common.unassigned')}</p>}
                 {canReassign && <ReassignDriverDialog route={route} />}
-                {canRunRoute && route.status === 'scheduled' && (
+                {canRunRoute && route.status === 'assigned' && (
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => updateRouteStatus.mutate({ routeId: route.id, status: 'in_progress' })}
+                    onClick={() => updateRouteStatus.mutate({ routeId: route.id, status: 'active' })}
                   >
                     <Play className="h-3.5 w-3.5" /> {t('routes.startRoute')}
                   </Button>
                 )}
-                {canRunRoute && route.status === 'in_progress' && (
+                {canRunRoute && route.status === 'active' && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => updateRouteStatus.mutate({ routeId: route.id, status: 'returning_to_station' })}
+                  >
+                    <Undo2 className="h-3.5 w-3.5" /> {t('routes.returningToStation')}
+                  </Button>
+                )}
+                {canRunRoute && route.status === 'returning_to_station' && (
                   <Button
                     size="sm"
                     variant="secondary"
@@ -110,8 +123,18 @@ export function RouteDetailSheet({
                     <CheckCircle2 className="h-3.5 w-3.5" /> {t('routes.completeRoute')}
                   </Button>
                 )}
+                {isManager && route.status === 'completed' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateRouteStatus.mutate({ routeId: route.id, status: 'closed' })}
+                  >
+                    <Lock className="h-3.5 w-3.5" /> {t('routes.closeRoute')}
+                  </Button>
+                )}
               </div>
               {canManage && <AssignmentHistoryList routeId={route.id} />}
+              {canManage && <AuditLogList routeId={route.id} />}
             </div>
           )}
 
@@ -151,7 +174,7 @@ export function RouteDetailSheet({
                       <KeyRound className="h-3 w-3" /> {t('delivery.methods.pin_required')}
                     </Badge>
                   )}
-                  {stop.returnWaitStartedAt && (stop.status === 'pending' || stop.status === 'en_route') && (
+                  {stop.returnWaitStartedAt && (stop.status === 'pending' || stop.status === 'out_for_delivery' || stop.status === 'scanned') && (
                     <Badge variant="warning" className="gap-1">
                       <Timer className="h-3 w-3" /> {t('failedDelivery.waiting')}
                     </Badge>
@@ -174,7 +197,7 @@ export function RouteDetailSheet({
                   <RevealPin stopId={stop.id} />
                 )}
 
-                {isDriver && (stop.status === 'pending' || stop.status === 'en_route') && (
+                {isDriver && (stop.status === 'pending' || stop.status === 'out_for_delivery' || stop.status === 'scanned') && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" asChild>
                       <a
@@ -199,7 +222,7 @@ export function RouteDetailSheet({
                   </div>
                 )}
 
-                {canManage && (stop.status === 'pending' || stop.status === 'en_route') && (
+                {canManage && (stop.status === 'pending' || stop.status === 'out_for_delivery' || stop.status === 'scanned') && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => setEditAddressStop(stop)}>
                       <MapPinCheck className="h-3.5 w-3.5" /> {t('addressIssue.updateAddress')}

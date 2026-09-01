@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { usePermissions } from '@/hooks/usePermissions'
-import { useAuthStore } from '@/store/auth'
 import { useReturns, useResolveReturn, useMarkReturnReceived } from '@/hooks/useReturns'
 import { CreateReturnDialog } from '@/components/returns/CreateReturnDialog'
 import { formatDateTime } from '@/lib/format'
@@ -23,7 +22,6 @@ const RESOLUTIONS: ReturnStatus[] = ['restocked', 'disposed', 'redelivery_schedu
 export default function Returns() {
   const { t, i18n } = useTranslation()
   const { can } = usePermissions()
-  const profile = useAuthStore((s) => s.profile)
   const [statusFilter, setStatusFilter] = useState<ReturnStatus | 'all'>('all')
 
   const { data: returns = [], isLoading } = useReturns()
@@ -116,7 +114,7 @@ export default function Returns() {
                   <Select
                     onValueChange={(v) =>
                       resolveReturn.mutate(
-                        { id: r.id, status: v as ReturnStatus, resolvedBy: profile?.id ?? '' },
+                        { id: r.id, status: v as ReturnStatus },
                         {
                           onSuccess: () => toast.success(t('common.success')),
                           onError: (e: any) => toast.error(e.message ?? t('common.error')),

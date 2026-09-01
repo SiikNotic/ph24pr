@@ -8,13 +8,28 @@ is a reference if you need to reproduce it in a new project.
 
 `app_role`, `customer_type`, `driver_status`, `vehicle_type`, `route_status`,
 `stop_status`, `priority_level`, `return_reason`, `return_status`,
-`availability_status`, `notification_type` — see `src/types/domain.ts` for
-the exact value sets, which mirror these one-to-one. `stop_status` keeps its
-legacy `failed` value for old data but the app no longer produces it — a
-failed delivery attempt goes straight to `pending_return`. `return_status`'s
-`pending_review` was renamed to `pending_return` (same enum, same oid, just
-a clearer label) and gained a new `returned` value in between it and
+`availability_status`, `notification_type`, `audit_entity_type`,
+`audit_action` — see `src/types/domain.ts` for the exact value sets, which
+mirror these one-to-one. `stop_status` keeps its legacy `failed` value for
+old data but the app no longer produces it — a failed delivery attempt goes
+straight to `pending_return`. `return_status`'s `pending_review` was
+renamed to `pending_return` (same enum, same oid, just a clearer label) and
+gained a new `returned` value in between it and
 `restocked`/`disposed`/`redelivery_scheduled`.
+
+`route_status` is the full 9-state lifecycle: `draft`, `labels_pending`,
+`labels_printed`, `confirmed`, `assigned`, `active`, `returning_to_station`,
+`completed`, `closed` (`canceled` is legacy — kept for old data, no code
+path produces it; the old `scheduled`/`in_progress` labels were renamed
+in-place to `confirmed`/`active`, so existing rows kept their data through
+the rename). `stop_status` — shared by `route_stops` and `packages` — is
+`pending`, `scanned`, `out_for_delivery`, `delivered`, `failed` (legacy),
+`pending_return`, `returned`. Note the enum's declared label order lists
+`scanned` before `out_for_delivery` (matching the app's stated package/
+delivery status vocabulary), but the actual sequence this app produces is
+`pending → out_for_delivery` (the moment the route goes `active`) `→
+scanned` (the driver scans it at the door, exactly where scanning already
+happened before this system existed) `→ delivered`.
 
 ## Tables
 
@@ -62,6 +77,21 @@ a clearer label) and gained a new `returned` value in between it and
   delivery config (`require_photo_for_in_hand`, `leave_location_options
   text[]`, `customer_no_response_wait_seconds`, `return_reason_options
   text[]`).
+- **audit_log** — the unified, cross-entity audit trail: every route status
+  change, driver change, address change, label print/reprint, package
+  scan, delivery completion/failure, and return receipt/resolution, in one
+  append-only table. Each row names the `entity_type`/`entity_id` it's
+  about (route/route_stop/package/return), always carries a `route_id` for
+  easy per-route queries, and records the action, previous/new state, and
+  the actor (id/name/role) and when. The only writer is `log_audit_event()`
+  (below), called from within every other security-definer RPC that
+  changes something worth auditing — no insert/update/delete RLS policies,
+  and `log_audit_event()` itself has its `EXECUTE` grant revoked from
+  `anon`/`authenticated` so it can only ever be called from inside those
+  other RPCs, never directly by a client. This is the comprehensive feed;
+  `route_assignment_history` and `stop_address_history` (above) keep
+  serving their own focused detail panels unchanged — the same RPCs write
+  to all of them together.
 
 `route_stops` also carries the driver delivery workflow's configuration and
 proof: `delivery_method`, `delivery_pin` (see below), `recipient_name`,
@@ -69,7 +99,9 @@ proof: `delivery_method`, `delivery_pin` (see below), `recipient_name`,
 `customer_phone` (denormalized for the "call/message customer" failed-
 delivery affordance), `return_wait_started_at` (see below), and
 `address_issue_flagged_at`/`address_issue_notes` (see "Incorrect-address
-handling" below). `packages` carries `scanned_at`.
+handling" below). `packages` carries `scanned_at` and its own `status`
+(the same `stop_status` vocabulary as `route_stops` — see "Route &
+delivery lifecycle" below).
 
 ## Row-Level Security
 
@@ -115,8 +147,9 @@ Policy shape, per table:
   `anon`** — a driver's own client can never change a delivery address, or
   even the issue-flag columns, directly; only `report_address_issue()` and
   `update_stop_address()` (both `security definer`) can touch them.
-- `stop_address_history` — a driver sees their own route's history; back
-  office sees all. Same visibility split as `route_assignment_history`.
+- `stop_address_history` and `audit_log` — a driver sees their own route's
+  history; back office sees all. Same visibility split as
+  `route_assignment_history`.
 - `route_stops.delivery_pin` has **no SELECT grant for `authenticated` or
   `anon`** (`revoke select (delivery_pin) on route_stops from authenticated,
   anon`) — real column-level security, not just an app convention. Every
@@ -126,32 +159,80 @@ Policy shape, per table:
   `get_delivery_pin()` (back office) and `complete_delivery()` (compares it
   internally) — both `security definer`.
 
-## Route confirmation integrity
+## Route & delivery lifecycle
 
-Two extra safeguards enforce "every label must be printed before a route is
-confirmed" at the database level, not just in the UI:
+`update_route_status(p_route_id, p_new_status, p_reason)` is the *only*
+path that ever changes `routes.status`, and it's a real state machine, not
+a free-form write: each transition is validated server-side against the
+route's current status *and* who's calling —
 
-- `increment_package_print(p_package_id uuid)` — a `security definer` RPC
-  that is the *only* way a package's `label_printed`/`printed_at`/
-  `print_count` change. It updates the existing row in place, so printing
-  and reprinting are the same idempotent operation and can never create a
-  duplicate package.
-- `routes_check_labels_before_confirm` — a `before update` trigger on
-  `routes` that raises an exception if a route is moved out of `draft`
-  while any of its packages still has `label_printed = false`.
+| transition | requires | who |
+|---|---|---|
+| → `confirmed` | current status is `labels_printed` | `is_ops()` |
+| → `active` | current status is `assigned` | `is_ops()` or the assigned driver |
+| → `returning_to_station` | current status is `active` | `is_ops()` or the assigned driver |
+| → `completed` | current status is `returning_to_station` | `is_ops()` or the assigned driver |
+| → `closed` | current status is `completed` | `is_manager()` (owner/general_manager only) |
 
-## Route reassignment
+Entering `active` also bulk-moves every one of the route's not-yet-attempted
+`route_stops`/`packages` from `pending` to `out_for_delivery` in the same
+transaction. Every transition is logged to `audit_log` (below).
 
-`reassign_route_driver(p_route_id, p_new_driver_id, p_reason, p_notes)` is
-the *only* path that ever changes `routes.driver_id` — used for both the
-first assignment after confirming a route and reassigning a confirmed or
-active route (driver called in sick, abandoned the route, another driver
-takes over, etc). Restricted to `is_ops()` (owner/general_manager/
-dispatch). In one transaction it: locks the route row, flips `driver_id`,
-writes one row to `route_assignment_history`, and notifies the outgoing and
-incoming driver. It never touches `route_stops` or `packages` — scanned
-packages, delivery history, and progress carry over untouched, and no new
-route or duplicate package is ever created.
+The earlier three statuses aren't reachable through this RPC at all —
+they're maintained automatically:
+
+- `increment_package_print(p_package_id uuid)` remains the *only* way a
+  package's `label_printed`/`printed_at`/`print_count` change (printing and
+  reprinting are still the same idempotent operation on the existing row,
+  never creating a duplicate package), but now it also logs the print to
+  `audit_log` and, while the route is still `draft`/`labels_pending`/
+  `labels_printed`, recomputes and applies the route's status itself:
+  `labels_pending` while any package is unprinted, `labels_printed` once
+  they're all printed. This fully replaces the old
+  `routes_check_labels_before_confirm` trigger — `update_route_status()`'s
+  own `labels_printed` check on the `confirmed` transition is the
+  enforcement now.
+- `reassign_route_driver(p_route_id, p_new_driver_id, p_reason, p_notes)`
+  remains the *only* path that ever changes `routes.driver_id` — used for
+  both the first assignment and reassigning a route any time after that
+  (driver called in sick, abandoned the route, another driver takes over,
+  etc). Restricted to `is_ops()`. In one transaction it: locks the route
+  row, flips `driver_id`, and — only on the very first assignment (current
+  status is `confirmed`) — also advances the status to `assigned`; any
+  later reassignment changes only the driver. It writes one row to
+  `route_assignment_history` and one (or two, if the status also changed)
+  to `audit_log`, and notifies the outgoing and incoming driver. It never
+  touches `route_stops` or `packages` — scanned packages, delivery history,
+  and progress carry over untouched, and no new route or duplicate package
+  is ever created.
+
+`route_stops` and `packages` share the same `stop_status` delivery
+lifecycle (`pending → out_for_delivery → scanned → delivered`, or
+`→ pending_return → returned` for a failed one) — see the Enums section
+above for why the sequence doesn't match the enum's declared label order.
+`scan_package()` and `complete_delivery()` (below) keep both tables in
+sync; nothing else writes `packages.status`.
+
+## Audit trail
+
+`log_audit_event(p_entity_type, p_entity_id, p_route_id, p_action,
+p_previous_state, p_new_state, p_notes)` is the *only* writer of
+`audit_log`. It isn't itself callable by any client (`EXECUTE` is revoked
+from `anon`/`authenticated`) — every other security-definer RPC in this
+document calls it internally once it's already validated and applied its
+own change, so every row is inherently already-authorized. It records the
+current caller's name and role (from `profiles`) alongside the entity, the
+action, and the previous/new state, so nothing about "record important
+actions ... user, role, date/time, previous state, new state" is left to
+the application layer to get right or to accidentally skip. Every RPC that
+changes something worth auditing calls it: `update_route_status()`
+(`route_status_changed`), `reassign_route_driver()` (`driver_changed`, and
+`route_status_changed` on a first assignment), `update_stop_address()`
+(`address_changed`), `increment_package_print()` (`label_printed`),
+`scan_package()` (`package_scanned`), `complete_delivery()`
+(`delivery_completed`), `report_delivery_failure()` (`delivery_failed`),
+`mark_return_received()` (`return_received`), and `resolve_return()`
+(`return_resolved`).
 
 ## Time off requests
 
@@ -169,8 +250,11 @@ route or duplicate package is ever created.
 ## Driver delivery workflow
 
 - `scan_package(p_package_id, p_qr_payload)` — restricted to the package's
-  route's assigned driver. Stamps `packages.scanned_at` only if
-  `p_qr_payload` matches the package's own `qr_payload` exactly.
+  route's assigned driver. Stamps `packages.scanned_at` and sets
+  `packages.status = 'scanned'` only if `p_qr_payload` matches the
+  package's own `qr_payload` exactly, logs the scan, and — once every
+  sibling package for the stop has been scanned — advances the stop itself
+  to `scanned` too.
 - `complete_delivery(p_stop_id, p_entered_pin, p_recipient_name,
   p_signature_data, p_photo_data, p_leave_location)` — restricted to the
   stop's route's assigned driver. Re-validates everything server-side
@@ -180,7 +264,8 @@ route or duplicate package is ever created.
   `signature_required` needs a name + signature; `leave_at_location` needs
   a photo + location; `in_hand` needs a photo only if
   `org_settings.require_photo_for_in_hand` is on). Only then does it set
-  `status = 'delivered'`.
+  `status = 'delivered'` on the stop and mirror it onto every one of its
+  packages, and logs the completion.
 - `get_delivery_pin(p_stop_id)` — restricted to `is_back_office()` (never a
   driver), so whoever created the delivery can relay the PIN to the
   recipient without the driver ever seeing it.
@@ -204,16 +289,20 @@ route or duplicate package is ever created.
   `now() >= return_wait_started_at + org_settings.customer_no_response_wait_seconds`
   — the countdown cannot be skipped by the client no matter what the UI
   shows. Every other reason reports immediately. In one transaction it sets
-  the stop to `pending_return` with a human-readable `failure_reason`,
-  inserts the `returns` row (`status = 'pending_return'`), and notifies
+  the stop (and every one of its packages) to `pending_return` with a
+  human-readable `failure_reason`, inserts the `returns` row
+  (`status = 'pending_return'`), logs the failure, and notifies
   dispatch/general_manager/owner.
 - `mark_return_received(p_return_id, p_notes)` — restricted to
   `is_back_office()`. The only path from `pending_return` to `returned`:
   records who received it and when (`received_at`/`received_by`/
-  `received_by_name`), and if the return is linked to a stop, closes that
-  stop out to `returned` too. Only from `returned` can the existing
-  `returns_update_ops`-gated client update move a return on to
-  `restocked`/`disposed`/`redelivery_scheduled`.
+  `received_by_name`), logs it, and if the return is linked to a stop,
+  closes that stop (and its packages) out to `returned` too.
+- `resolve_return(p_return_id, p_status, p_notes)` — restricted to
+  `is_ops()`. The only path from `returned` onward to a final
+  `restocked`/`disposed`/`redelivery_scheduled`, replacing what used to be
+  a plain client-side update (`returns_update_ops` policy is gone) — now
+  every resolution is validated (must already be `returned`) and logged.
 
 ## Incorrect-address handling
 
@@ -228,9 +317,10 @@ route or duplicate package is ever created.
   update. In one transaction it: inserts one row into
   `stop_address_history` (the original address, the new one, who, when, and
   the required reason), updates the stop's `address`, clears the driver's
-  issue flag, and notifies the assigned driver (`address_updated`). It never
-  touches `packages` or creates a new stop/route — scanned packages and
-  progress carry over untouched, exactly like `reassign_route_driver()`.
+  issue flag, logs the change, and notifies the assigned driver
+  (`address_updated`). It never touches `packages` or creates a new
+  stop/route — scanned packages and progress carry over untouched, exactly
+  like `reassign_route_driver()`.
 - The driver's app polls its active route every 15s while a delivery is in
   progress (`useRoute(id, { refetchInterval })` in `DeliveryFlow.tsx`) so a
   corrected address — and its "Navigate" link — shows up automatically

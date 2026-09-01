@@ -8,6 +8,7 @@ import type {
   RouteAssignmentEvent,
   ReturnItem,
   StopAddressHistoryEvent,
+  AuditLogEvent,
   AvailabilityEntry,
   AppNotification,
   HelpArticle,
@@ -119,6 +120,24 @@ export function mapPackage(row: any): Package {
     printedAt: row.printed_at ?? undefined,
     printCount: row.print_count,
     scannedAt: row.scanned_at ?? undefined,
+    status: row.status,
+    createdAt: row.created_at,
+  }
+}
+
+export function mapAuditLogEvent(row: any): AuditLogEvent {
+  return {
+    id: row.id,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    routeId: row.route_id ?? undefined,
+    action: row.action,
+    previousState: row.previous_state ?? undefined,
+    newState: row.new_state ?? undefined,
+    actorId: row.actor_id ?? undefined,
+    actorName: row.actor_name ?? undefined,
+    actorRole: row.actor_role ?? undefined,
+    notes: row.notes ?? undefined,
     createdAt: row.created_at,
   }
 }

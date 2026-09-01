@@ -68,24 +68,14 @@ export function useMarkReturnReceived() {
   })
 }
 
-// Only meaningful once a return is 'returned' -- you can't restock, dispose,
-// or reschedule redelivery for a package the driver still physically has.
+// The only path from 'returned' to a final resolution -- you can't restock,
+// dispose, or reschedule redelivery for a package the driver still
+// physically has. Logged to the unified audit trail.
 export function useResolveReturn() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({
-      id,
-      status,
-      resolvedBy,
-    }: {
-      id: string
-      status: ReturnStatus
-      resolvedBy: string
-    }) => {
-      const { error } = await supabase
-        .from('returns')
-        .update({ status, resolved_at: new Date().toISOString(), resolved_by: resolvedBy })
-        .eq('id', id)
+    mutationFn: async ({ id, status, notes }: { id: string; status: ReturnStatus; notes?: string }) => {
+      const { error } = await supabase.rpc('resolve_return', { p_return_id: id, p_status: status, p_notes: notes || null })
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['returns'] }),
