@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { mapPackage } from '@/lib/mappers'
 import { generatePackageIdentity } from '@/lib/packageCode'
-import type { Priority } from '@/types/domain'
+import { STOP_COLUMNS } from '@/hooks/useRoutes'
+import type { DeliveryMethod, Priority } from '@/types/domain'
 
 export function usePackages(routeId: string | undefined) {
   return useQuery({
@@ -20,6 +21,10 @@ export function usePackages(routeId: string | undefined) {
   })
 }
 
+function generateDeliveryPin() {
+  return String(Math.floor(1000 + Math.random() * 9000))
+}
+
 interface AddDeliveryInput {
   routeId: string
   sequence: number
@@ -30,12 +35,16 @@ interface AddDeliveryInput {
   packageCount: number
   isControlledSubstance: boolean
   requiresSignature: boolean
+  deliveryMethod: DeliveryMethod
 }
 
 // Adds one delivery (a route_stop) to a route and mints a uniquely
 // identified package — with its own code + QR payload — for every unit in
 // packageCount. These identities are generated once, here, and never
-// change again: reprinting a label later must reuse them exactly.
+// change again: reprinting a label later must reuse them exactly. When the
+// configured delivery method is a PIN, one is generated here too — known
+// to whoever creates the delivery (so they can relay it to the recipient),
+// never to the driver.
 export function useAddDelivery() {
   const qc = useQueryClient()
   return useMutation({
@@ -52,9 +61,16 @@ export function useAddDelivery() {
           package_count: input.packageCount,
           is_controlled_substance: input.isControlledSubstance,
           requires_signature: input.requiresSignature,
+          delivery_method: input.deliveryMethod,
+          delivery_pin: input.deliveryMethod === 'pin_required' ? generateDeliveryPin() : null,
         })
-        .select()
-        .single()
+        // Explicit columns — never `*` — since authenticated has no SELECT
+        // grant on delivery_pin (see supabase/schema-notes.md). We just set
+        // it above; PostgREST would otherwise try to return it and fail.
+        // (Cast: a dynamic column-list string defeats supabase-js's
+        // literal-type row inference.)
+        .select(STOP_COLUMNS)
+        .single<{ id: string }>()
       if (stopError) throw stopError
 
       const packageRows = Array.from({ length: input.packageCount }, (_, i) => {
@@ -109,6 +125,27 @@ export function usePrintLabel() {
       // race each other into an inconsistent print_count.
       const { error } = await supabase.rpc('increment_package_print', { p_package_id: packageId })
       if (error) throw error
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['packages', variables.routeId] })
+    },
+  })
+}
+
+// The driver must scan every package for a stop before completing it. The
+// RPC verifies the scanned QR payload actually matches this package and
+// that the caller is that route's assigned driver — it never trusts the
+// client's own judgement of what was scanned.
+export function useScanPackage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ packageId, qrPayload }: { packageId: string; qrPayload: string; routeId: string }) => {
+      const { data, error } = await supabase.rpc('scan_package', {
+        p_package_id: packageId,
+        p_qr_payload: qrPayload,
+      })
+      if (error) throw error
+      return mapPackage(data)
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['packages', variables.routeId] })

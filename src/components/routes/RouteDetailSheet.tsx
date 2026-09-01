@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Navigation2, ShieldAlert, FileSignature, Package, Loader2, Play, CheckCircle2 } from 'lucide-react'
+import { Navigation2, ShieldAlert, FileSignature, Package, Loader2, Play, CheckCircle2, KeyRound, Eye } from 'lucide-react'
 import {
   Sheet,
   SheetContent,
@@ -20,6 +21,7 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { useAuthStore } from '@/store/auth'
 import { useUpdateRouteStatus, useUpdateStop } from '@/hooks/useRoutes'
 import { useCreateReturn } from '@/hooks/useReturns'
+import { useDeliveryPin } from '@/hooks/useDelivery'
 import { ReassignDriverDialog } from '@/components/routes/ReassignDriverDialog'
 import { AssignmentHistoryList } from '@/components/routes/AssignmentHistoryList'
 import type { DeliveryRoute, ReturnReason, RouteStop } from '@/types/domain'
@@ -38,12 +40,12 @@ export function RouteDetailSheet({
   const { can, isDriver } = usePermissions()
   const updateRouteStatus = useUpdateRouteStatus()
   const [issueStop, setIssueStop] = useState<RouteStop | null>(null)
-  const [deliverStop, setDeliverStop] = useState<RouteStop | null>(null)
 
   if (!route) return null
 
   const canManage = can('routes', 'assign')
   const canReassign = canManage && (route.status === 'scheduled' || route.status === 'in_progress')
+  const canRunRoute = canManage || isDriver
 
   return (
     <>
@@ -59,13 +61,13 @@ export function RouteDetailSheet({
             </SheetDescription>
           </SheetHeader>
 
-          {canManage && (
+          {(canManage || canRunRoute) && (
             <div className="mt-4 flex flex-col gap-2 rounded-lg border border-border p-3">
-              <Label className="text-xs text-muted-foreground">{t('routes.driver')}</Label>
+              {canManage && <Label className="text-xs text-muted-foreground">{t('routes.driver')}</Label>}
               <div className="flex flex-wrap items-center gap-2">
-                <p className="flex-1 text-sm font-medium">{route.driverName ?? t('common.unassigned')}</p>
+                {canManage && <p className="flex-1 text-sm font-medium">{route.driverName ?? t('common.unassigned')}</p>}
                 {canReassign && <ReassignDriverDialog route={route} />}
-                {route.status === 'scheduled' && (
+                {canRunRoute && route.status === 'scheduled' && (
                   <Button
                     size="sm"
                     variant="secondary"
@@ -74,7 +76,7 @@ export function RouteDetailSheet({
                     <Play className="h-3.5 w-3.5" /> {t('routes.startRoute')}
                   </Button>
                 )}
-                {route.status === 'in_progress' && (
+                {canRunRoute && route.status === 'in_progress' && (
                   <Button
                     size="sm"
                     variant="secondary"
@@ -84,7 +86,7 @@ export function RouteDetailSheet({
                   </Button>
                 )}
               </div>
-              <AssignmentHistoryList routeId={route.id} />
+              {canManage && <AssignmentHistoryList routeId={route.id} />}
             </div>
           )}
 
@@ -119,6 +121,11 @@ export function RouteDetailSheet({
                       <FileSignature className="h-3 w-3" /> {t('routes.signature')}
                     </Badge>
                   )}
+                  {stop.deliveryMethod === 'pin_required' && (
+                    <Badge variant="outline" className="gap-1">
+                      <KeyRound className="h-3 w-3" /> {t('delivery.methods.pin_required')}
+                    </Badge>
+                  )}
                 </div>
 
                 {stop.status === 'delivered' && stop.signedBy && (
@@ -127,6 +134,10 @@ export function RouteDetailSheet({
                   </p>
                 )}
                 {stop.failureReason && <p className="mt-2 text-xs text-destructive">{stop.failureReason}</p>}
+
+                {canManage && stop.deliveryMethod === 'pin_required' && stop.status !== 'delivered' && (
+                  <RevealPin stopId={stop.id} />
+                )}
 
                 {isDriver && (stop.status === 'pending' || stop.status === 'en_route') && (
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -139,8 +150,10 @@ export function RouteDetailSheet({
                         <Navigation2 className="h-3.5 w-3.5" /> {t('routes.navigate')}
                       </a>
                     </Button>
-                    <Button size="sm" onClick={() => setDeliverStop(stop)}>
-                      <CheckCircle2 className="h-3.5 w-3.5" /> {t('routes.markDelivered')}
+                    <Button size="sm" asChild>
+                      <Link to={`/routes/${route.id}/deliver/${stop.id}`}>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> {t('routes.markDelivered')}
+                      </Link>
                     </Button>
                     <Button size="sm" variant="destructive" onClick={() => setIssueStop(stop)}>
                       <ShieldAlert className="h-3.5 w-3.5" /> {t('routes.markFailed')}
@@ -153,52 +166,30 @@ export function RouteDetailSheet({
         </SheetContent>
       </Sheet>
 
-      <DeliverStopDialog stop={deliverStop} onClose={() => setDeliverStop(null)} />
       <ReportIssueDialog stop={issueStop} route={route} onClose={() => setIssueStop(null)} />
     </>
   )
 }
 
-function DeliverStopDialog({ stop, onClose }: { stop: RouteStop | null; onClose: () => void }) {
+function RevealPin({ stopId }: { stopId: string }) {
   const { t } = useTranslation()
-  const [signedBy, setSignedBy] = useState('')
-  const updateStop = useUpdateStop()
+  const [reveal, setReveal] = useState(false)
+  const { data: pin, isLoading } = useDeliveryPin(stopId, reveal)
 
-  async function confirm() {
-    if (!stop) return
-    try {
-      await updateStop.mutateAsync({ stopId: stop.id, status: 'delivered', signedBy: signedBy || undefined })
-      toast.success(t('routes.deliveryConfirmed'))
-      setSignedBy('')
-      onClose()
-    } catch (e: any) {
-      toast.error(e.message ?? t('common.error'))
-    }
+  if (!reveal) {
+    return (
+      <Button variant="ghost" size="sm" className="mt-2" onClick={() => setReveal(true)}>
+        <Eye className="h-3.5 w-3.5" /> {t('delivery.revealPin')}
+      </Button>
+    )
   }
 
   return (
-    <Dialog open={!!stop} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('routes.markDelivered')}</DialogTitle>
-        </DialogHeader>
-        {stop?.requiresSignature && (
-          <div className="flex flex-col gap-1.5">
-            <Label>{t('routes.signedBy')}</Label>
-            <Input value={signedBy} onChange={(e) => setSignedBy(e.target.value)} placeholder="Full name" />
-          </div>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {t('common.cancel')}
-          </Button>
-          <Button onClick={confirm} disabled={updateStop.isPending}>
-            {updateStop.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t('common.confirm')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <p className="mt-2 flex items-center gap-1.5 text-sm">
+      <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+      {t('delivery.deliveryPin')}:{' '}
+      <span className="font-mono font-semibold tracking-widest">{isLoading ? '····' : pin}</span>
+    </p>
   )
 }
 

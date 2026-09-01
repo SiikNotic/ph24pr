@@ -62,6 +62,29 @@ cover; a driver's own direct edits are limited to setting their working
 hours (available/partial) — going unavailable always goes through a
 request.
 
+## Driver delivery workflow
+
+Every delivery has to be scanned before it can be completed — a driver
+opens a stop and scans each of its packages (photographs the QR label,
+decoded on-device, or types the printed code by hand if scanning fails)
+before anything else unlocks. Once every package is scanned, the app shows
+the proof required for that delivery's configured method:
+
+- **Delivery In Hand** — just a confirmation, unless the company has turned
+  on "require photo for in-hand deliveries" in Settings.
+- **Leave at Location** — a photo is mandatory, plus picking where it was
+  left from the company's configured list (Settings → Delivery Settings).
+- **Signature Required** — recipient name and an on-screen signature.
+- **4-Digit PIN Required** — a PIN generated only for that delivery when it
+  was created; the driver never sees it, only whoever created the delivery
+  does (to relay it to the recipient) via "Reveal PIN" on the route. The
+  driver has to get the right one from the recipient.
+
+The database re-validates all of this itself in `complete_delivery()` —
+every rule (scanned first, the right proof, the correct PIN) holds even if
+something calls the API directly, not just through this UI. Completing a
+delivery automatically moves the driver on to their next pending stop.
+
 ## Getting started
 
 ```bash

@@ -21,7 +21,9 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useCustomers } from '@/hooks/useCustomers'
 import { useAddDelivery } from '@/hooks/usePackages'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
-import type { Customer, Priority } from '@/types/domain'
+import type { Customer, DeliveryMethod, Priority } from '@/types/domain'
+
+const DELIVERY_METHODS: DeliveryMethod[] = ['in_hand', 'leave_at_location', 'signature_required', 'pin_required']
 
 export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; nextSequence: number }) {
   const { t } = useTranslation()
@@ -32,6 +34,7 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
   const [packageCount, setPackageCount] = useState(1)
   const [controlled, setControlled] = useState(false)
   const [signature, setSignature] = useState(false)
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('in_hand')
 
   const { data: customers = [] } = useCustomers()
   const addDelivery = useAddDelivery()
@@ -43,12 +46,14 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
     setPackageCount(1)
     setControlled(false)
     setSignature(false)
+    setDeliveryMethod('in_hand')
   }
 
   function pickCustomer(c: Customer) {
     setCustomer(c)
     setControlled(c.handlesControlledSubstances)
     setSignature(c.requiresSignature)
+    setDeliveryMethod(c.requiresSignature ? 'signature_required' : 'in_hand')
   }
 
   const filtered = customers.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
@@ -73,6 +78,7 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
         packageCount,
         isControlledSubstance: controlled,
         requiresSignature: signature,
+        deliveryMethod,
       })
       toast.success(t('common.success'))
       reset()
@@ -189,6 +195,23 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
                   onChange={(e) => setPackageCount(Math.max(1, Number(e.target.value) || 1))}
                 />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>{t('delivery.method')}</Label>
+              <Select value={deliveryMethod} onValueChange={(v) => setDeliveryMethod(v as DeliveryMethod)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DELIVERY_METHODS.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {t(`delivery.methods.${m}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{t(`delivery.methodHints.${deliveryMethod}`)}</p>
             </div>
 
             <div className="flex items-center justify-between rounded-lg border border-border p-3">

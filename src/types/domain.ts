@@ -63,6 +63,12 @@ export type RouteStatus = 'draft' | 'scheduled' | 'in_progress' | 'completed' | 
 export type StopStatus = 'pending' | 'en_route' | 'delivered' | 'failed' | 'returned'
 export type Priority = 'standard' | 'urgent' | 'stat'
 
+// The proof required to complete a delivery, configured per delivery
+// (route_stop) when it's added to a route. delivery_pin is deliberately
+// absent from the RouteStop the driver's app receives — see Package below
+// and supabase/schema-notes.md.
+export type DeliveryMethod = 'in_hand' | 'leave_at_location' | 'signature_required' | 'pin_required'
+
 export interface RouteStop {
   id: string
   routeId: string
@@ -75,12 +81,17 @@ export interface RouteStop {
   packageCount: number
   isControlledSubstance: boolean
   requiresSignature: boolean
+  deliveryMethod: DeliveryMethod
   scheduledWindowStart?: string
   scheduledWindowEnd?: string
   deliveredAt?: string
   signedBy?: string
   notes?: string
   failureReason?: string
+  recipientName?: string
+  deliveryPhotoData?: string
+  deliveryLeaveLocation?: string
+  deliverySignatureData?: string
 }
 
 export interface Package {
@@ -93,6 +104,7 @@ export interface Package {
   labelPrinted: boolean
   printedAt?: string
   printCount: number
+  scannedAt?: string
   createdAt: string
 }
 

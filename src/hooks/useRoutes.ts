@@ -3,7 +3,17 @@ import { supabase } from '@/lib/supabase'
 import { mapRoute, mapAssignmentEvent } from '@/lib/mappers'
 import type { ReassignmentReason, RouteStatus, StopStatus } from '@/types/domain'
 
-const ROUTE_SELECT = '*, drivers(id, profiles(full_name)), route_stops(*)'
+// Explicit column list (never `*`) so this never touches route_stops's
+// delivery_pin column, which has no SELECT grant for authenticated/anon —
+// a driver is never meant to see the PIN, only compare against it via the
+// complete_delivery() RPC.
+export const STOP_COLUMNS =
+  'id, route_id, sequence, customer_id, customer_name, address, priority, status, package_count, ' +
+  'is_controlled_substance, requires_signature, scheduled_window_start, scheduled_window_end, ' +
+  'delivered_at, signed_by, notes, failure_reason, delivery_method, delivery_photo_data, ' +
+  'delivery_leave_location, delivery_signature_data, recipient_name'
+
+const ROUTE_SELECT = `*, drivers(id, profiles(full_name)), route_stops(${STOP_COLUMNS})`
 
 export function useRoutes(date?: string) {
   return useQuery({

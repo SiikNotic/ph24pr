@@ -11,6 +11,7 @@ import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import RoutesPage from '@/pages/Routes'
 import RouteBuilder from '@/pages/RouteBuilder'
+import DeliveryFlow from '@/pages/DeliveryFlow'
 import Customers from '@/pages/Customers'
 import Drivers from '@/pages/Drivers'
 import Returns from '@/pages/Returns'
@@ -63,6 +64,14 @@ export default function App() {
                   element={
                     <RequireSection section="routes">
                       <RouteBuilder />
+                    </RequireSection>
+                  }
+                />
+                <Route
+                  path="routes/:routeId/deliver/:stopId"
+                  element={
+                    <RequireSection section="routes">
+                      <DeliveryFlow />
                     </RequireSection>
                   }
                 />

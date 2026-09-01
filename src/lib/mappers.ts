@@ -70,12 +70,17 @@ export function mapStop(row: any): RouteStop {
     packageCount: row.package_count,
     isControlledSubstance: row.is_controlled_substance,
     requiresSignature: row.requires_signature,
+    deliveryMethod: row.delivery_method ?? 'in_hand',
     scheduledWindowStart: row.scheduled_window_start ?? undefined,
     scheduledWindowEnd: row.scheduled_window_end ?? undefined,
     deliveredAt: row.delivered_at ?? undefined,
     signedBy: row.signed_by ?? undefined,
     notes: row.notes ?? undefined,
     failureReason: row.failure_reason ?? undefined,
+    recipientName: row.recipient_name ?? undefined,
+    deliveryPhotoData: row.delivery_photo_data ?? undefined,
+    deliveryLeaveLocation: row.delivery_leave_location ?? undefined,
+    deliverySignatureData: row.delivery_signature_data ?? undefined,
   }
 }
 
@@ -108,6 +113,7 @@ export function mapPackage(row: any): Package {
     labelPrinted: row.label_printed,
     printedAt: row.printed_at ?? undefined,
     printCount: row.print_count,
+    scannedAt: row.scanned_at ?? undefined,
     createdAt: row.created_at,
   }
 }

@@ -43,7 +43,14 @@ the exact value sets, which mirror these one-to-one.
 - **notifications** — targeted at `target_user_id` OR broadcast to
   `target_roles` (an `app_role[]`).
 - **help_articles** — Help/Wiki content, optionally scoped to `roles`.
-- **org_settings** — single-row table for company name/timezone.
+- **org_settings** — single-row table for company name/timezone, plus the
+  delivery config (`require_photo_for_in_hand`,
+  `leave_location_options text[]`).
+
+`route_stops` also carries the driver delivery workflow's configuration and
+proof: `delivery_method`, `delivery_pin` (see below), `recipient_name`,
+`delivery_signature_data`, `delivery_photo_data`, `delivery_leave_location`.
+`packages` carries `scanned_at`.
 
 ## Row-Level Security
 
@@ -77,6 +84,14 @@ Policy shape, per table:
   and only while the row's status is `available` or `partial`; touching or
   setting `unavailable`/`time_off` directly is blocked by RLS — that status
   only ever gets set by `review_time_off_request()` approving a request.
+- `route_stops.delivery_pin` has **no SELECT grant for `authenticated` or
+  `anon`** (`revoke select (delivery_pin) on route_stops from authenticated,
+  anon`) — real column-level security, not just an app convention. Every
+  client-side query against `route_stops` lists its columns explicitly
+  (`STOP_COLUMNS` in `src/hooks/useRoutes.ts`) rather than using `*`, so it
+  never even asks for that column. The only legitimate readers are
+  `get_delivery_pin()` (back office) and `complete_delivery()` (compares it
+  internally) — both `security definer`.
 
 ## Route confirmation integrity
 
@@ -117,6 +132,29 @@ route or duplicate package is ever created.
   `availability` row of `status = 'time_off'` for every date in the range —
   this is the *only* way `time_off` gets set from a request, and it never
   touches `route_stops`/`packages`. Either way, the requester is notified.
+
+## Driver delivery workflow
+
+- `scan_package(p_package_id, p_qr_payload)` — restricted to the package's
+  route's assigned driver. Stamps `packages.scanned_at` only if
+  `p_qr_payload` matches the package's own `qr_payload` exactly.
+- `complete_delivery(p_stop_id, p_entered_pin, p_recipient_name,
+  p_signature_data, p_photo_data, p_leave_location)` — restricted to the
+  stop's route's assigned driver. Re-validates everything server-side
+  regardless of what the UI already checked: every package for the stop
+  has `scanned_at` set, and the proof matches the stop's `delivery_method`
+  (`pin_required` compares `p_entered_pin` to the stored `delivery_pin`;
+  `signature_required` needs a name + signature; `leave_at_location` needs
+  a photo + location; `in_hand` needs a photo only if
+  `org_settings.require_photo_for_in_hand` is on). Only then does it set
+  `status = 'delivered'`.
+- `get_delivery_pin(p_stop_id)` — restricted to `is_back_office()` (never a
+  driver), so whoever created the delivery can relay the PIN to the
+  recipient without the driver ever seeing it.
+- `delivery_pin` is generated client-side (`generateDeliveryPin()` in
+  `src/hooks/usePackages.ts`) at the same time as the delivery/packages are
+  created, by whoever is creating it (dispatch/staff/managers) — never by
+  the driver, and never regenerated afterwards.
 
 ## Demo accounts
 

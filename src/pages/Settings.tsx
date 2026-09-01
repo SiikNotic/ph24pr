@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, Moon, Sun, Monitor } from 'lucide-react'
+import { Loader2, Moon, Sun, Monitor, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -8,10 +8,18 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { usePermissions } from '@/hooks/usePermissions'
-import { useOrgSettings, useUpdateOrgSettings, useTeamMembers, useUpdateMemberRole } from '@/hooks/useSettings'
+import {
+  useOrgSettings,
+  useUpdateOrgSettings,
+  useUpdateDeliverySettings,
+  useTeamMembers,
+  useUpdateMemberRole,
+} from '@/hooks/useSettings'
 import { useUIStore } from '@/store/ui'
 import { ROLE_LABELS } from '@/lib/permissions'
 import { initials } from '@/lib/format'
@@ -27,18 +35,51 @@ export default function Settings() {
 
   const { data: org } = useOrgSettings()
   const updateOrg = useUpdateOrgSettings()
+  const updateDeliverySettings = useUpdateDeliverySettings()
   const { data: members = [] } = useTeamMembers()
   const updateRole = useUpdateMemberRole()
 
   const [companyName, setCompanyName] = useState('')
   const [timezone, setTimezone] = useState('')
+  const [requirePhotoForInHand, setRequirePhotoForInHand] = useState(false)
+  const [leaveLocationOptions, setLeaveLocationOptions] = useState<string[]>([])
+  const [newLocation, setNewLocation] = useState('')
 
   useEffect(() => {
     if (org) {
       setCompanyName(org.companyName)
       setTimezone(org.timezone)
+      setRequirePhotoForInHand(org.requirePhotoForInHand)
+      setLeaveLocationOptions(org.leaveLocationOptions)
     }
   }, [org])
+
+  function saveDeliverySettings(next: { requirePhotoForInHand: boolean; leaveLocationOptions: string[] }) {
+    updateDeliverySettings.mutate(next, {
+      onSuccess: () => toast.success(t('common.success')),
+      onError: (e: any) => toast.error(e.message ?? t('common.error')),
+    })
+  }
+
+  function addLocation() {
+    const value = newLocation.trim()
+    if (!value || leaveLocationOptions.includes(value)) return
+    const next = [...leaveLocationOptions, value]
+    setLeaveLocationOptions(next)
+    setNewLocation('')
+    saveDeliverySettings({ requirePhotoForInHand, leaveLocationOptions: next })
+  }
+
+  function removeLocation(value: string) {
+    const next = leaveLocationOptions.filter((l) => l !== value)
+    setLeaveLocationOptions(next)
+    saveDeliverySettings({ requirePhotoForInHand, leaveLocationOptions: next })
+  }
+
+  function toggleRequirePhoto(checked: boolean) {
+    setRequirePhotoForInHand(checked)
+    saveDeliverySettings({ requirePhotoForInHand: checked, leaveLocationOptions })
+  }
 
   return (
     <div>
@@ -95,6 +136,49 @@ export default function Settings() {
               )}
             </CardContent>
           </Card>
+
+          {can('settings', 'edit') && (
+            <Card className="mt-4 max-w-xl">
+              <CardHeader>
+                <CardTitle className="text-base">{t('delivery.settingsTitle')}</CardTitle>
+                <CardDescription>{t('delivery.settingsSubtitle')}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div>
+                    <Label className="cursor-pointer">{t('delivery.requirePhotoForInHand')}</Label>
+                    <p className="text-xs text-muted-foreground">{t('delivery.requirePhotoForInHandHint')}</p>
+                  </div>
+                  <Switch checked={requirePhotoForInHand} onCheckedChange={toggleRequirePhoto} />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label>{t('delivery.leaveLocationOptions')}</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {leaveLocationOptions.map((loc) => (
+                      <Badge key={loc} variant="secondary" className="gap-1 py-1">
+                        {loc}
+                        <button onClick={() => removeLocation(loc)} className="ml-1 hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newLocation}
+                      onChange={(e) => setNewLocation(e.target.value)}
+                      placeholder={t('delivery.addLocationPlaceholder')}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLocation())}
+                    />
+                    <Button type="button" variant="outline" onClick={addLocation} disabled={!newLocation.trim()}>
+                      <Plus className="h-4 w-4" /> {t('common.add')}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {can('settings', 'manage_users') && (
