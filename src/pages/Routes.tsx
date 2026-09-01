@@ -9,8 +9,8 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { StatusBadge, PriorityBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { RouteMiniTrack } from '@/components/routes/RouteMiniTrack'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -165,7 +165,7 @@ export default function RoutesPage() {
                   </div>
 
                   <div className="hidden min-w-0 flex-1 items-center gap-3 md:flex">
-                    <Progress value={total ? (done / total) * 100 : 0} className="h-1.5" />
+                    <RouteMiniTrack done={done} total={total} className="flex-1" />
                     <span className="font-numeric shrink-0 text-xs tabular-nums text-muted-foreground">
                       {done}/{total}
                     </span>

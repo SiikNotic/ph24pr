@@ -21,9 +21,9 @@ import { StatusBadge, PriorityBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { RouteMiniTrack } from '@/components/routes/RouteMiniTrack'
 import { useAuthStore } from '@/store/auth'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useRoutes } from '@/hooks/useRoutes'
@@ -103,7 +103,7 @@ export default function Dashboard() {
               <EmptyState icon={RouteIcon} title={t('dashboard.noActiveRoute')} />
             ) : (
               <div className="flex flex-col gap-3">
-                <Progress value={stops.length ? (completed / stops.length) * 100 : 0} indicatorClassName="bg-success" />
+                <RouteMiniTrack done={completed} total={stops.length} />
                 <div className="flex flex-col divide-y divide-border">
                   {stops.map((stop) => (
                     <div key={stop.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3">
@@ -234,11 +234,7 @@ export default function Dashboard() {
                         <StatusBadge status={route.status} />
                       </div>
                       <div className="flex items-center gap-3">
-                        <Progress
-                          value={total ? (done / total) * 100 : 0}
-                          className="h-1"
-                          indicatorClassName={cn(route.status === 'returning_to_station' ? 'bg-warning' : 'bg-primary')}
-                        />
+                        <RouteMiniTrack done={done} total={total} className="flex-1" />
                         <span className="font-numeric shrink-0 text-[11px] text-muted-foreground">
                           {done}/{total}
                         </span>
