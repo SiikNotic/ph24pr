@@ -94,10 +94,6 @@
     "password": "Contraseña",
     "signIn": "Iniciar sesión",
     "signingIn": "Iniciando sesión…",
-    "demoAccess": "Acceso de demostración",
-    "demoAccessHint": "Entra al instante con cualquier rol para explorar el sistema",
-    "continueAs": "Continuar como {{role}}",
-    "orSignInManually": "O inicia sesión con tus credenciales",
     "invalidCredentials": "Correo o contraseña inválidos",
     "poweredBy": "Acceso seguro basado en roles para equipos de logística farmacéutica"
   },

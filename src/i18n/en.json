@@ -94,10 +94,6 @@
     "password": "Password",
     "signIn": "Sign in",
     "signingIn": "Signing in…",
-    "demoAccess": "Demo access",
-    "demoAccessHint": "Jump in instantly as any role to explore the system",
-    "continueAs": "Continue as {{role}}",
-    "orSignInManually": "Or sign in with your credentials",
     "invalidCredentials": "Invalid email or password",
     "poweredBy": "Secure role-based access for pharmacy logistics teams"
   },

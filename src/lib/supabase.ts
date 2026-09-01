@@ -14,13 +14,3 @@ export const supabase = createClient(url, anonKey, {
     autoRefreshToken: true,
   },
 })
-
-export const DEMO_PASSWORD = 'Demo1234!'
-
-export const DEMO_ACCOUNTS = [
-  { role: 'owner', email: 'owner@medroute.demo' },
-  { role: 'general_manager', email: 'gm@medroute.demo' },
-  { role: 'dispatch', email: 'dispatch@medroute.demo' },
-  { role: 'staff', email: 'staff@medroute.demo' },
-  { role: 'driver', email: 'driver1@medroute.demo' },
-] as const

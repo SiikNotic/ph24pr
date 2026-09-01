@@ -163,9 +163,9 @@ cp .env.example .env   # fill in your Supabase project URL + anon key
 npm run dev
 ```
 
-The database schema, RLS policies, and demo data already live in the
-Supabase project referenced by `.env`. See `supabase/schema-notes.md` for an
-overview of the schema if you need to re-create it elsewhere.
+The database schema and RLS policies already live in the Supabase project
+referenced by `.env`. See `supabase/schema-notes.md` for an overview of the
+schema if you need to re-create it elsewhere.
 
 ## Deploying to GitHub Pages
 
@@ -186,18 +186,16 @@ subpath into every asset URL and route (`vite.config.ts`'s `base`,
 (e.g. a shared link straight to a route) that GitHub Pages' static hosting
 can't rewrite server-side on its own.
 
-## Demo accounts
+## Accounts
 
-The login screen's "Demo access" panel signs in instantly as any role.
-Manual credentials (password for all: `Demo1234!`):
-
-| Role | Email |
-|---|---|
-| Owner | owner@medroute.demo |
-| General Manager | gm@medroute.demo |
-| Dispatch | dispatch@medroute.demo |
-| Staff | staff@medroute.demo |
-| Driver | driver1@medroute.demo (also driver2@, driver3@) |
+There are no demo/sample accounts — the login screen only accepts real
+Supabase Auth credentials. The app has no self-service sign-up or in-app
+"invite teammate" flow yet, so every account (including the first `owner`)
+is created directly in Supabase: add a row to `auth.users` (with a matching
+`auth.identities` row) and set that profile's `role` in `public.profiles` —
+the `handle_new_user` trigger creates the `profiles` row automatically from
+`raw_user_meta_data` when the auth user is inserted. See
+`supabase/schema-notes.md` for the table shapes.
 
 ## Roles & permissions
 
