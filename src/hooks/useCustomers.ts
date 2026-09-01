@@ -57,6 +57,23 @@ export function useUpdateCustomer() {
   })
 }
 
+// Bulk-inserts customers parsed from an imported CSV in one request. Each
+// row goes through the exact same shape as a single create (toRow) —
+// import is just a create loop the server sees as one insert, not a
+// separate code path with its own rules.
+export function useBulkCreateCustomers() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (inputs: CustomerInput[]) => {
+      if (inputs.length === 0) return []
+      const { data, error } = await supabase.from('customers').insert(inputs.map(toRow)).select()
+      if (error) throw error
+      return data.map(mapCustomer)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['customers'] }),
+  })
+}
+
 export function useDeleteCustomer() {
   const qc = useQueryClient()
   return useMutation({

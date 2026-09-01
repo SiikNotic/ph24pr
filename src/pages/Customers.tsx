@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Users, Search, ShieldAlert, FileSignature, Trash2, Phone, Mail } from 'lucide-react'
+import { Users, Search, ShieldAlert, FileSignature, Trash2, Phone, Mail, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -13,6 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { usePermissions } from '@/hooks/usePermissions'
 import { useCustomers, useDeleteCustomer } from '@/hooks/useCustomers'
 import { CustomerFormDialog } from '@/components/customers/CustomerFormDialog'
+import { ImportCustomersDialog } from '@/components/customers/ImportCustomersDialog'
+import { customersToCsv, downloadCsv } from '@/lib/customersCsv'
+import { todayISODate } from '@/lib/format'
 import type { CustomerType } from '@/types/domain'
 
 const TYPES: (CustomerType | 'all')[] = ['all', 'pharmacy', 'clinic', 'hospital', 'nursing_home', 'patient']
@@ -41,7 +44,20 @@ export default function Customers() {
       <PageHeader
         title={t('customers.title')}
         subtitle={t('customers.subtitle')}
-        actions={can('customers', 'create') ? <CustomerFormDialog /> : undefined}
+        actions={
+          <>
+            {can('customers', 'export') && (
+              <Button
+                variant="outline"
+                onClick={() => downloadCsv(`medroute-customers-${todayISODate()}.csv`, customersToCsv(filtered))}
+              >
+                <Download className="h-4 w-4" /> {t('customers.export')}
+              </Button>
+            )}
+            {can('customers', 'create') && <ImportCustomersDialog />}
+            {can('customers', 'create') && <CustomerFormDialog />}
+          </>
+        }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

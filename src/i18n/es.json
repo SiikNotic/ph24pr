@@ -377,7 +377,20 @@
       "hospital": "Hospital",
       "nursing_home": "Casa de Reposo",
       "patient": "Paciente (entrega a domicilio)"
-    }
+    },
+    "export": "Exportar",
+    "import": "Importar",
+    "importTitle": "Importar clientes",
+    "importSubtitle": "Sube un archivo CSV para añadir varios clientes a la vez.",
+    "chooseFile": "Elegir archivo CSV",
+    "downloadTemplate": "Descargar plantilla",
+    "importSummary": "{{valid}} de {{total}} filas son válidas y listas para importar",
+    "importErrors": "Filas con errores (omitidas)",
+    "importRow": "Fila {{row}}",
+    "importConfirm_one": "Importar {{count}} cliente",
+    "importConfirm_other": "Importar {{count}} clientes",
+    "importSuccess_one": "{{count}} cliente importado",
+    "importSuccess_other": "{{count}} clientes importados"
   },
   "drivers": {
     "title": "Conductores",
