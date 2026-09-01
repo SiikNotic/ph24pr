@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import { useRoute } from '@/hooks/useRoutes'
 import { usePackages } from '@/hooks/usePackages'
 import { useScanPackage } from '@/hooks/usePackages'
@@ -156,46 +158,65 @@ export default function DeliveryFlow() {
         }
       />
 
-      <Card className="mb-4">
-        <CardContent className="flex flex-col gap-2 p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-semibold">{stop.customerName}</p>
-              <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" /> {stop.address}
-              </p>
+      {/* Stop card: rounded "sheet" handle + a colored pin marker, echoing the
+          pickup/drop-off card pattern from the reference driver app. */}
+      <div className="mb-4 overflow-hidden rounded-2xl border border-border bg-card shadow-elevate">
+        <div className="flex justify-center pt-2.5">
+          <span className="h-1 w-10 rounded-full bg-border" aria-hidden />
+        </div>
+        <div className="flex flex-col gap-3 p-4 pt-3">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary">
+              <MapPin className="h-5 w-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-base font-semibold leading-tight">{stop.customerName}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{stop.address}</p>
             </div>
             <PriorityBadge priority={stop.priority} />
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {stop.isControlledSubstance && (
-              <Badge variant="warning" className="w-fit gap-1">
-                <ShieldAlert className="h-3 w-3" /> {t('routes.controlled')}
-              </Badge>
-            )}
-            {stop.addressIssueFlaggedAt && (
-              <Badge variant="warning" className="w-fit gap-1">
-                <MapPinOff className="h-3 w-3" /> {t('addressIssue.flagged')}
-              </Badge>
-            )}
-          </div>
-          <Button size="sm" variant="ghost" className="w-fit" onClick={() => setAddressIssueOpen(true)}>
+          {(stop.isControlledSubstance || stop.addressIssueFlaggedAt) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {stop.isControlledSubstance && (
+                <Badge variant="warning" className="w-fit gap-1">
+                  <ShieldAlert className="h-3 w-3" /> {t('routes.controlled')}
+                </Badge>
+              )}
+              {stop.addressIssueFlaggedAt && (
+                <Badge variant="warning" className="w-fit gap-1">
+                  <MapPinOff className="h-3 w-3" /> {t('addressIssue.flagged')}
+                </Badge>
+              )}
+            </div>
+          )}
+          <Button size="sm" variant="ghost" className="w-fit -ml-2" onClick={() => setAddressIssueOpen(true)}>
             <MapPinOff className="h-3.5 w-3.5" /> {t('addressIssue.reportIssue')}
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <AddressIssueDialog stop={addressIssueOpen ? stop : null} onClose={() => setAddressIssueOpen(false)} />
 
       {/* Step 1: scan every package */}
-      <div className="mb-4 flex flex-col gap-3">
+      <div className={cn('flex flex-col gap-3', allScanned ? 'mb-4' : 'mb-40 lg:mb-4')}>
         <div className="flex items-center justify-between">
           <p className="flex items-center gap-1.5 text-sm font-semibold">
             <PackageCheck className="h-4 w-4" /> {t('delivery.stepScan')}
           </p>
-          <Badge variant={allScanned ? 'success' : 'secondary'}>
+          <span className="font-numeric text-xs font-semibold text-muted-foreground">
             {scannedCount} / {stopPackages.length}
-          </Badge>
+          </span>
+        </div>
+        <div className="flex gap-1" aria-hidden>
+          {stopPackages.map((pkg) => (
+            <span
+              key={pkg.id}
+              className={cn(
+                'h-1.5 flex-1 rounded-full transition-colors duration-500',
+                pkg.scannedAt ? 'bg-success' : 'bg-muted',
+              )}
+            />
+          ))}
         </div>
         {stopPackages.map((pkg) => (
           <PackageScanInput key={pkg.id} pkg={pkg} onScan={handleScan} isScanning={scanPackage.isPending} />
@@ -204,7 +225,7 @@ export default function DeliveryFlow() {
 
       {/* Step 2: proof of delivery, once every package is scanned */}
       {allScanned && (
-        <Card>
+        <Card className="mb-40 lg:mb-4">
           <CardContent className="flex flex-col gap-4 p-4">
             <p className="flex items-center gap-1.5 text-sm font-semibold">
               <CheckCircle2 className="h-4 w-4" /> {t(`delivery.methods.${stop.deliveryMethod}`)}
@@ -268,13 +289,45 @@ export default function DeliveryFlow() {
               </div>
             )}
 
-            <Button size="lg" onClick={handleComplete} disabled={!canSubmit || completeDelivery.isPending}>
+            {/* Desktop: a normal inline button, matching the rest of the app. */}
+            <Button
+              size="lg"
+              onClick={handleComplete}
+              disabled={!canSubmit || completeDelivery.isPending}
+              className="hidden lg:inline-flex"
+            >
               {completeDelivery.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {t('delivery.completeDelivery')}
             </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Mobile: the same button, in a solid full-width bar sitting just
+          above the driver bottom-nav — the reference app's own pattern (its
+          Go Online / Accept buttons live inside an opaque bottom sheet bar,
+          never floating bare over content). Portaled to <body> so it's
+          reliably positioned against the real viewport rather than
+          whatever ancestor React happens to mount it under. A solid bar
+          background also matters functionally, not just visually: the
+          button dims to 40% opacity while disabled (until every proof field
+          is filled in), and without an opaque backing that would let
+          whatever scrolls underneath show through. */}
+      {allScanned &&
+        createPortal(
+          <div className="safe-bottom fixed inset-x-0 bottom-[68px] z-20 border-t border-border bg-card/95 p-3 backdrop-blur-md lg:hidden">
+            <Button
+              size="lg"
+              onClick={handleComplete}
+              disabled={!canSubmit || completeDelivery.isPending}
+              className="h-14 w-full rounded-full text-base"
+            >
+              {completeDelivery.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t('delivery.completeDelivery')}
+            </Button>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }
