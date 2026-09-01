@@ -10,6 +10,7 @@ import type {
   AvailabilityEntry,
   AppNotification,
   HelpArticle,
+  TimeOffRequest,
 } from '@/types/domain'
 
 export function mapCustomer(row: any): Customer {
@@ -124,6 +125,24 @@ export function mapAssignmentEvent(row: any): RouteAssignmentEvent {
     routeStatus: row.route_status,
     reason: row.reason,
     notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+  }
+}
+
+export function mapTimeOffRequest(row: any): TimeOffRequest {
+  return {
+    id: row.id,
+    requesterId: row.requester_id,
+    requesterName: row.requester_name,
+    requesterRole: row.requester_role,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    reason: row.reason ?? undefined,
+    status: row.status,
+    reviewedBy: row.reviewed_by ?? undefined,
+    reviewedByName: row.reviewed_by_name ?? undefined,
+    reviewedAt: row.reviewed_at ?? undefined,
+    reviewNote: row.review_note ?? undefined,
     createdAt: row.created_at,
   }
 }

@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   FileSignature,
   CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge, PriorityBadge } from '@/components/shared/StatusBadge'
@@ -24,6 +25,7 @@ import { useRoute, useConfirmRoute, useReassignDriver } from '@/hooks/useRoutes'
 import { usePackages } from '@/hooks/usePackages'
 import { useRemoveDelivery } from '@/hooks/usePackages'
 import { useDrivers } from '@/hooks/useDrivers'
+import { useUnavailableDriverIds } from '@/hooks/useAvailability'
 import { usePermissions } from '@/hooks/usePermissions'
 import { AddDeliveryDialog } from '@/components/routes/AddDeliveryDialog'
 import { LabelsStep } from '@/components/routes/LabelsStep'
@@ -42,6 +44,7 @@ export default function RouteBuilder() {
   const { data: route, isLoading } = useRoute(routeId)
   const { data: packages = [] } = usePackages(routeId)
   const { data: drivers = [] } = useDrivers()
+  const unavailableDriverIds = useUnavailableDriverIds(route?.date)
   const removeDelivery = useRemoveDelivery()
   const confirmRoute = useConfirmRoute()
   const reassignDriver = useReassignDriver()
@@ -261,11 +264,23 @@ export default function RouteBuilder() {
                   <SelectContent>
                     {drivers.map((d) => (
                       <SelectItem key={d.id} value={d.id}>
-                        {d.fullName}
+                        <span className="flex items-center gap-1.5">
+                          {d.fullName}
+                          {unavailableDriverIds.has(d.id) && (
+                            <span className="flex items-center gap-1 text-warning-foreground">
+                              <AlertTriangle className="h-3 w-3" /> {t('availability.driverUnavailable')}
+                            </span>
+                          )}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {route.driverId && unavailableDriverIds.has(route.driverId) && (
+                  <p className="flex items-center gap-1.5 text-xs text-warning-foreground">
+                    <AlertTriangle className="h-3.5 w-3.5" /> {t('availability.assigningUnavailableWarning')}
+                  </p>
+                )}
 
                 {route.driverId && (
                   <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 p-3 text-sm text-success">

@@ -175,6 +175,24 @@ export interface AvailabilityEntry {
   note?: string
 }
 
+export type TimeOffStatus = 'pending' | 'approved' | 'rejected'
+
+export interface TimeOffRequest {
+  id: string
+  requesterId: string
+  requesterName: string
+  requesterRole: Role
+  startDate: string
+  endDate: string
+  reason?: string
+  status: TimeOffStatus
+  reviewedBy?: string
+  reviewedByName?: string
+  reviewedAt?: string
+  reviewNote?: string
+  createdAt: string
+}
+
 export type NotificationType =
   | 'route_assigned'
   | 'delivery_completed'

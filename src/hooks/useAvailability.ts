@@ -18,6 +18,26 @@ export function useAvailability(startDate: string, endDate: string) {
   })
 }
 
+// Drivers marked unavailable/time_off on a specific date — used wherever a
+// driver is picked for a route, so an approved day off is clearly visible
+// right at the point of assignment.
+export function useUnavailableDriverIds(date: string | undefined) {
+  const { data } = useQuery({
+    queryKey: ['availability', date, date, 'unavailable-ids'],
+    enabled: !!date,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('availability')
+        .select('driver_id, status')
+        .eq('date', date)
+        .in('status', ['unavailable', 'time_off'])
+      if (error) throw error
+      return new Set(data.map((row) => row.driver_id as string))
+    },
+  })
+  return data ?? new Set<string>()
+}
+
 export function useUpsertAvailability() {
   const qc = useQueryClient()
   return useMutation({

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, UserCog } from 'lucide-react'
+import { AlertTriangle, Loader2, UserCog } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useDrivers } from '@/hooks/useDrivers'
 import { useReassignDriver } from '@/hooks/useRoutes'
+import { useUnavailableDriverIds } from '@/hooks/useAvailability'
 import type { DeliveryRoute, ReassignmentReason } from '@/types/domain'
 
 const REASONS: ReassignmentReason[] = [
@@ -37,8 +38,10 @@ export function ReassignDriverDialog({ route }: { route: DeliveryRoute }) {
 
   const { data: drivers = [] } = useDrivers()
   const reassign = useReassignDriver()
+  const unavailableDriverIds = useUnavailableDriverIds(route.date)
   const isReassignment = !!route.driverId
   const otherDrivers = drivers.filter((d) => d.id !== route.driverId)
+  const pickedIsUnavailable = !!driverId && unavailableDriverIds.has(driverId)
 
   function reset() {
     setDriverId('')
@@ -102,11 +105,23 @@ export function ReassignDriverDialog({ route }: { route: DeliveryRoute }) {
                 {isReassignment && <SelectItem value="unassigned">{t('common.unassigned')}</SelectItem>}
                 {(isReassignment ? otherDrivers : drivers).map((d) => (
                   <SelectItem key={d.id} value={d.id}>
-                    {d.fullName}
+                    <span className="flex items-center gap-1.5">
+                      {d.fullName}
+                      {unavailableDriverIds.has(d.id) && (
+                        <span className="flex items-center gap-1 text-warning-foreground">
+                          <AlertTriangle className="h-3 w-3" /> {t('availability.driverUnavailable')}
+                        </span>
+                      )}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {pickedIsUnavailable && (
+              <p className="flex items-center gap-1.5 text-xs text-warning-foreground">
+                <AlertTriangle className="h-3.5 w-3.5" /> {t('availability.assigningUnavailableWarning')}
+              </p>
+            )}
           </div>
 
           {isReassignment && (

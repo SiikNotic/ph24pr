@@ -44,6 +44,24 @@ the route's status at the time) is recorded in the route's Assignment
 History, enforced at the database level by a dedicated
 `reassign_route_driver()` function rather than a plain client-side update.
 
+## Time off requests
+
+Drivers and Staff request days they can't work from the Availability page
+("Juan requested Thursday and Friday off"); Owners never need to. The
+request goes to Dispatch or a manager (General Manager, Owner) for approval
+— an employee can never approve their own request, enforced by the
+database, not just the UI. Rejecting one keeps the calendar untouched and
+tells the employee why; approving a driver's request writes those exact
+dates onto their availability calendar as time off automatically. Wherever
+a driver is picked for a route (assigning or reassigning), anyone marked
+unavailable for that date shows a clear warning right in the driver list —
+management can still pick them if operationally necessary, but never
+without seeing it first. Owners, General Managers, and Dispatch can still
+edit any driver's calendar directly for anything the request flow doesn't
+cover; a driver's own direct edits are limited to setting their working
+hours (available/partial) — going unavailable always goes through a
+request.
+
 ## Getting started
 
 ```bash

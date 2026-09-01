@@ -16,6 +16,9 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { useAuthStore } from '@/store/auth'
 import { useDrivers } from '@/hooks/useDrivers'
 import { useAvailability, useUpsertAvailability } from '@/hooks/useAvailability'
+import { RequestTimeOffDialog } from '@/components/availability/RequestTimeOffDialog'
+import { MyTimeOffRequests } from '@/components/availability/MyTimeOffRequests'
+import { TimeOffRequestsPanel } from '@/components/availability/TimeOffRequestsPanel'
 import { todayISODate } from '@/lib/format'
 import type { AvailabilityStatus } from '@/types/domain'
 
@@ -33,7 +36,7 @@ function toISODate(d: Date) {
 
 export default function Availability() {
   const { t, i18n } = useTranslation()
-  const { isDriver } = usePermissions()
+  const { isDriver, can, scope } = usePermissions()
   const driver = useAuthStore((s) => s.driver)
   const [weekStart] = useState(new Date())
 
@@ -45,6 +48,9 @@ export default function Availability() {
   const { data: availability = [], isLoading } = useAvailability(startISO, endISO)
 
   const visibleDrivers = isDriver ? drivers.filter((d) => d.id === driver?.id) : drivers
+  const canEditAnyRow = can('availability', 'edit') && scope('availability') === 'all'
+  const canRequest = can('availability', 'request')
+  const canApprove = can('availability', 'approve')
 
   function entryFor(driverId: string, dateISO: string) {
     return availability.find((a) => a.driverId === driverId && a.date === dateISO)
@@ -52,7 +58,11 @@ export default function Availability() {
 
   return (
     <div>
-      <PageHeader title={t('availability.title')} subtitle={t('availability.subtitle')} />
+      <PageHeader
+        title={t('availability.title')}
+        subtitle={t('availability.subtitle')}
+        actions={canRequest ? <RequestTimeOffDialog /> : undefined}
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span className="font-medium">{t('availability.legend')}:</span>
@@ -62,6 +72,12 @@ export default function Availability() {
           </Badge>
         ))}
       </div>
+
+      {canApprove && (
+        <div className="mb-4">
+          <TimeOffRequestsPanel />
+        </div>
+      )}
 
       <Card>
         <CardContent className="overflow-x-auto p-0">
@@ -93,7 +109,8 @@ export default function Availability() {
                     {days.map((day) => {
                       const dateISO = toISODate(day)
                       const entry = entryFor(d.id, dateISO)
-                      const canEdit = isDriver ? d.id === driver?.id : true
+                      const isOwnRow = isDriver && d.id === driver?.id
+                      const canEdit = canEditAnyRow || (isOwnRow && can('availability', 'edit'))
                       return (
                         <td key={dateISO} className="p-2 text-center">
                           <AvailabilityCell
@@ -103,6 +120,7 @@ export default function Availability() {
                             startTime={entry?.startTime}
                             endTime={entry?.endTime}
                             editable={canEdit}
+                            fullControl={canEditAnyRow}
                           />
                         </td>
                       )
@@ -114,6 +132,12 @@ export default function Availability() {
           </table>
         </CardContent>
       </Card>
+
+      {canRequest && (
+        <div className="mt-4">
+          <MyTimeOffRequests />
+        </div>
+      )}
     </div>
   )
 }
@@ -125,6 +149,7 @@ function AvailabilityCell({
   startTime,
   endTime,
   editable,
+  fullControl,
 }: {
   driverId: string
   date: string
@@ -132,6 +157,7 @@ function AvailabilityCell({
   startTime?: string
   endTime?: string
   editable: boolean
+  fullControl: boolean
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -142,13 +168,20 @@ function AvailabilityCell({
   })
   const upsert = useUpsertAvailability()
 
+  // Once a day is approved time off (or marked unavailable by a manager),
+  // only a manager with full control can touch it again directly — a
+  // driver's own direct edits are limited to available/partial (see the
+  // availability_manage_own_driver RLS policy), so don't offer an editor
+  // that would silently no-op.
+  const locked = !fullControl && (status === 'unavailable' || status === 'time_off')
+
   const badge = (
     <Badge variant={status ? STATUS_VARIANT[status] : 'outline'} className="w-full justify-center">
       {status ? t(`status.${status}`) : '—'}
     </Badge>
   )
 
-  if (!editable) return badge
+  if (!editable || locked) return badge
 
   async function save() {
     try {
@@ -181,8 +214,12 @@ function AvailabilityCell({
               <SelectContent>
                 <SelectItem value="available">{t('status.available')}</SelectItem>
                 <SelectItem value="partial">{t('status.partial')}</SelectItem>
-                <SelectItem value="unavailable">{t('status.unavailable')}</SelectItem>
-                <SelectItem value="time_off">{t('status.time_off')}</SelectItem>
+                {fullControl && (
+                  <>
+                    <SelectItem value="unavailable">{t('status.unavailable')}</SelectItem>
+                    <SelectItem value="time_off">{t('status.time_off')}</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>

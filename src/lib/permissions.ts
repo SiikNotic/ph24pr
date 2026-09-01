@@ -24,6 +24,8 @@ export type Action =
   | 'manage_org'
   | 'manage_integrations'
   | 'resolve'
+  | 'request'
+  | 'approve'
 
 // Row-level scoping applied on top of section access: 'all' sees every
 // record, 'own' is restricted to records tied to the signed-in user
@@ -42,7 +44,7 @@ const R: Record<Role, Partial<Record<Section, SectionGrant>>> = {
     customers: { actions: ['view', 'create', 'edit', 'delete', 'export'], scope: 'all' },
     drivers: { actions: ['view', 'create', 'edit', 'delete', 'export'], scope: 'all' },
     returns: { actions: ['view', 'create', 'edit', 'delete', 'resolve', 'export'], scope: 'all' },
-    availability: { actions: ['view', 'create', 'edit', 'delete'], scope: 'all' },
+    availability: { actions: ['view', 'create', 'edit', 'delete', 'approve'], scope: 'all' },
     notifications: { actions: ['view', 'create', 'delete'], scope: 'all' },
     reports: { actions: ['view', 'export'], scope: 'all' },
     settings: {
@@ -57,7 +59,7 @@ const R: Record<Role, Partial<Record<Section, SectionGrant>>> = {
     customers: { actions: ['view', 'create', 'edit', 'delete', 'export'], scope: 'all' },
     drivers: { actions: ['view', 'create', 'edit', 'delete', 'export'], scope: 'all' },
     returns: { actions: ['view', 'create', 'edit', 'resolve', 'export'], scope: 'all' },
-    availability: { actions: ['view', 'create', 'edit', 'delete'], scope: 'all' },
+    availability: { actions: ['view', 'create', 'edit', 'delete', 'approve'], scope: 'all' },
     notifications: { actions: ['view', 'create'], scope: 'all' },
     reports: { actions: ['view', 'export'], scope: 'all' },
     settings: { actions: ['view', 'edit', 'manage_users', 'manage_integrations'], scope: 'all' },
@@ -69,7 +71,7 @@ const R: Record<Role, Partial<Record<Section, SectionGrant>>> = {
     customers: { actions: ['view', 'create', 'edit'], scope: 'all' },
     drivers: { actions: ['view'], scope: 'all' },
     returns: { actions: ['view', 'create', 'edit', 'resolve'], scope: 'all' },
-    availability: { actions: ['view'], scope: 'all' },
+    availability: { actions: ['view', 'approve'], scope: 'all' },
     notifications: { actions: ['view', 'create'], scope: 'all' },
     reports: { actions: ['view'], scope: 'all' },
     help: { actions: ['view'], scope: 'all' },
@@ -80,7 +82,7 @@ const R: Record<Role, Partial<Record<Section, SectionGrant>>> = {
     customers: { actions: ['view', 'create', 'edit'], scope: 'all' },
     drivers: { actions: ['view'], scope: 'all' },
     returns: { actions: ['view', 'create'], scope: 'all' },
-    availability: { actions: ['view'], scope: 'all' },
+    availability: { actions: ['view', 'request'], scope: 'all' },
     notifications: { actions: ['view'], scope: 'all' },
     help: { actions: ['view'], scope: 'all' },
   },
@@ -88,7 +90,7 @@ const R: Record<Role, Partial<Record<Section, SectionGrant>>> = {
     dashboard: { actions: ['view'], scope: 'own' },
     routes: { actions: ['view', 'edit'], scope: 'own' },
     returns: { actions: ['view', 'create'], scope: 'own' },
-    availability: { actions: ['view', 'create', 'edit'], scope: 'own' },
+    availability: { actions: ['view', 'create', 'edit', 'request'], scope: 'own' },
     notifications: { actions: ['view'], scope: 'own' },
     help: { actions: ['view'], scope: 'all' },
   },

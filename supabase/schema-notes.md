@@ -33,6 +33,11 @@ the exact value sets, which mirror these one-to-one.
   when, the route's status at that moment, and a reason). The only writer
   is `reassign_route_driver()` (below) — there are no insert/update/delete
   RLS policies, so the client can never touch it directly.
+- **time_off_requests** — driver/staff time-off requests (pending/approved/
+  rejected). No insert/update/delete RLS policies — every write goes
+  through `create_time_off_request()` / `review_time_off_request()` below,
+  which is what makes "owners don't submit requests" and "you can't approve
+  your own request" real guarantees instead of UI conventions.
 - **returns** — failed/returned deliveries, linked back to a stop/route.
 - **availability** — per-driver, per-day shift/time-off calendar.
 - **notifications** — targeted at `target_user_id` OR broadcast to
@@ -66,6 +71,12 @@ Policy shape, per table:
   everything, a driver sees only their own route's packages), but writes go
   exclusively through the `increment_package_print()` RPC (below) — there is
   no general-purpose update policy for print bookkeeping.
+- `time_off_requests` — a requester sees their own; owner/general_manager/
+  dispatch see all (they're the approvers). No direct writes at all.
+- `availability` — a driver may insert/update/delete only their *own* rows,
+  and only while the row's status is `available` or `partial`; touching or
+  setting `unavailable`/`time_off` directly is blocked by RLS — that status
+  only ever gets set by `review_time_off_request()` approving a request.
 
 ## Route confirmation integrity
 
@@ -93,6 +104,19 @@ writes one row to `route_assignment_history`, and notifies the outgoing and
 incoming driver. It never touches `route_stops` or `packages` — scanned
 packages, delivery history, and progress carry over untouched, and no new
 route or duplicate package is ever created.
+
+## Time off requests
+
+- `create_time_off_request(p_start_date, p_end_date, p_reason)` — any
+  authenticated non-owner can call this for themselves. Inserts the request
+  and a broadcast notification to dispatch/general_manager/owner.
+- `review_time_off_request(p_request_id, p_approve, p_review_note)` —
+  restricted to `is_ops()`. Refuses if the caller is the requester (an
+  employee cannot approve their own request) or the request was already
+  decided. On approval, if the requester has a `drivers` row, it upserts an
+  `availability` row of `status = 'time_off'` for every date in the range —
+  this is the *only* way `time_off` gets set from a request, and it never
+  touches `route_stops`/`packages`. Either way, the requester is notified.
 
 ## Demo accounts
 
