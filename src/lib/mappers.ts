@@ -13,6 +13,7 @@ import type {
   AppNotification,
   HelpArticle,
   TimeOffRequest,
+  DriverLocation,
 } from '@/types/domain'
 
 export function mapCustomer(row: any): Customer {
@@ -122,6 +123,22 @@ export function mapPackage(row: any): Package {
     scannedAt: row.scanned_at ?? undefined,
     status: row.status,
     createdAt: row.created_at,
+    loadIssueReportedAt: row.load_issue_reported_at ?? undefined,
+    loadIssueReason: row.load_issue_reason ?? undefined,
+    loadIssueNotes: row.load_issue_notes ?? undefined,
+  }
+}
+
+export function mapDriverLocation(row: any): DriverLocation {
+  return {
+    driverId: row.driver_id,
+    routeId: row.route_id ?? undefined,
+    lat: row.lat,
+    lng: row.lng,
+    heading: row.heading ?? undefined,
+    speed: row.speed ?? undefined,
+    accuracy: row.accuracy ?? undefined,
+    updatedAt: row.updated_at,
   }
 }
 

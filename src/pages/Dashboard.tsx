@@ -10,20 +10,21 @@ import {
   Truck,
   Plus,
   UserPlus,
-  MapPin,
   AlertTriangle,
   ShieldAlert,
   ArrowRight,
 } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { KpiCard } from '@/components/shared/KpiCard'
-import { StatusBadge, PriorityBadge } from '@/components/shared/StatusBadge'
+import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { RouteMiniTrack } from '@/components/routes/RouteMiniTrack'
+import { FleetMap } from '@/components/dashboard/FleetMap'
+import DriverHome from '@/pages/driver/DriverHome'
 import { useAuthStore } from '@/store/auth'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useRoutes } from '@/hooks/useRoutes'
@@ -75,65 +76,11 @@ export default function Dashboard() {
   const { data: drivers = [] } = useDrivers()
   const { data: notifications = [] } = useNotifications()
 
+  // The driver's home is a dedicated work-focused state machine (no
+  // route / route summary / package loading / current stop), never this
+  // dashboard — see src/pages/driver/DriverHome.tsx.
   if (isDriver) {
-    const myRoute =
-      routes.find((r) => r.status === 'active' || r.status === 'returning_to_station') ??
-      routes.find((r) => r.status === 'assigned')
-    const stops = myRoute?.stops ?? []
-    const completed = stops.filter((s) => s.status === 'delivered').length
-    const controlled = stops.filter((s) => s.isControlledSubstance).length
-
-    return (
-      <div>
-        <PageHeader title={t('dashboard.welcome', { name: profile?.fullName?.split(' ')[0] })} subtitle={t('dashboard.subtitle')} />
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <KpiCard label={t('dashboard.kpi.myStopsToday')} value={stops.length} icon={RouteIcon} />
-          <KpiCard label={t('dashboard.kpi.myCompleted')} value={completed} icon={PackageCheck} tone="success" />
-          <KpiCard label={t('dashboard.kpi.controlledSubstances')} value={controlled} icon={Clock} tone="warning" />
-        </div>
-
-        <Card className="mt-4">
-          <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-            <CardTitle className="font-display text-base">{t('dashboard.myRouteToday')}</CardTitle>
-            {myRoute && <StatusBadge status={myRoute.status} />}
-          </CardHeader>
-          <CardContent>
-            {!myRoute ? (
-              <EmptyState icon={RouteIcon} title={t('dashboard.noActiveRoute')} />
-            ) : (
-              <div className="flex flex-col gap-3">
-                <RouteMiniTrack done={completed} total={stops.length} />
-                <div className="flex flex-col divide-y divide-border">
-                  {stops.map((stop) => (
-                    <div key={stop.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted font-numeric text-xs font-semibold">
-                        {stop.sequence}
-                      </span>
-                      <div className="min-w-[8rem] flex-1">
-                        <p className="truncate text-sm font-medium">{stop.customerName}</p>
-                        <p className="truncate text-xs text-muted-foreground">{stop.address}</p>
-                      </div>
-                      <div className="ml-auto flex shrink-0 items-center gap-1.5">
-                        <PriorityBadge priority={stop.priority} />
-                        <StatusBadge status={stop.status} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button asChild className="mt-1 self-start">
-                  <Link to="/routes">
-                    <MapPin className="h-4 w-4" /> {t('routes.myRoutes')}
-                  </Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <RecentActivity notifications={notifications} lang={i18n.language} />
-      </div>
-    )
+    return <DriverHome />
   }
 
   const activeRoutes = routes.filter((r) => r.status === 'active' || r.status === 'assigned' || r.status === 'returning_to_station')
@@ -196,6 +143,21 @@ export default function Dashboard() {
           </motion.div>
         ))}
       </div>
+
+      {/* The dispatch command-center's primary element: a large live map
+          of where every active driver actually is right now, not a small
+          secondary widget. See src/components/dashboard/FleetMap.tsx for
+          why it shows real GPS pins only (no stop-to-stop route lines —
+          this app has no geocoding pipeline for customer addresses). */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: [0.19, 1, 0.22, 1] }} className="mt-5">
+        <div className="mb-2 flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-base font-semibold">{t('fleetMap.title')}</h2>
+            <p className="text-xs text-muted-foreground">{t('fleetMap.subtitle')}</p>
+          </div>
+        </div>
+        <FleetMap className="h-[420px] sm:h-[480px]" />
+      </motion.div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

@@ -154,3 +154,37 @@ export function useScanPackage() {
     },
   })
 }
+
+// The driver flags a package as not physically present while loading the
+// vehicle — used by the pre-route "package loading" workflow, never at the
+// door. Never creates a duplicate package or delivery: it only stamps
+// three columns on the existing row and notifies dispatch
+// (report_package_missing() in supabase/schema-notes.md). Scanning the
+// package later clears the flag automatically.
+export function useReportPackageMissing() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      packageId,
+      reason,
+      notes,
+    }: {
+      packageId: string
+      reason: string
+      notes?: string
+      routeId: string
+    }) => {
+      const { data, error } = await supabase.rpc('report_package_missing', {
+        p_package_id: packageId,
+        p_reason: reason,
+        p_notes: notes || null,
+      })
+      if (error) throw error
+      return mapPackage(data)
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['packages', variables.routeId] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}

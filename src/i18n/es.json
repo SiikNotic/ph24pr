@@ -274,7 +274,10 @@
     "waitPresetCustom": "Personalizado",
     "customWaitSeconds": "Tiempo de espera personalizado (segundos)",
     "returnReasonOptions": "Otros motivos de devolución",
-    "addReturnReasonPlaceholder": "ej. Farmacia cerrada"
+    "addReturnReasonPlaceholder": "ej. Farmacia cerrada",
+    "locationUnavailable": "Ubicación en vivo no disponible",
+    "navigate": "Navegar",
+    "stopOfTotal": "Parada {{n}} de {{total}}"
   },
   "failedDelivery": {
     "callCustomer": "Llamar al Cliente",
@@ -514,5 +517,59 @@
     "searchPlaceholder": "Buscar artículos…",
     "categories": "Categorías",
     "noArticles": "No se encontraron artículos"
+  },
+  "driverHome": {
+    "noRouteTitle": "Sin ruta asignada",
+    "noRouteSubtitle": "No tienes una ruta asignada en este momento.",
+    "noRouteHint": "Vuelve a revisar cuando despacho te asigne una ruta para hoy.",
+    "routeCompleteTitle": "Ruta completada",
+    "routeCompleteSubtitle": "Buen trabajo — todas las paradas de hoy están completas.",
+    "returningTitle": "Paradas completas",
+    "returningSubtitle": "Regresa a la estación cuando estés listo.",
+    "assignedStops": "{{count}} paradas",
+    "assignedPackages": "{{count}} paquetes",
+    "startingStation": "Estación de salida",
+    "startLoading": "Iniciar ruta"
+  },
+  "loading": {
+    "title": "Cargar el vehículo",
+    "subtitle": "Escanea cada paquete antes de salir",
+    "scannedCount": "{{done}} / {{total}} paquetes escaneados",
+    "accountedCount": "{{done}} / {{total}} paquetes contabilizados",
+    "allLoaded": "Todos los paquetes cargados",
+    "packageNotPresent": "Paquete no disponible",
+    "missingHint": "Reportado como faltante — escanéalo aquí si lo encuentras.",
+    "missingBadge": "Faltante",
+    "missingDialogTitle": "Reportar paquete faltante",
+    "missingDialogSubtitle": "Esto se registra y despacho es notificado de inmediato.",
+    "missingReason": "Motivo",
+    "missingReasonOptions": {
+      "not_on_shelf": "No está en el estante",
+      "not_loaded": "No fue cargado por el almacén",
+      "damaged": "Dañado / inutilizable",
+      "other": "Otro"
+    },
+    "missingNotes": "Notas (opcional)",
+    "confirmMissing": "Reportar faltante",
+    "strictBlockedHint": "Cada paquete debe escanearse antes de iniciar esta ruta. Comunícate con despacho sobre cualquier paquete faltante.",
+    "lenientBlockedHint": "Escanea o reporta cada paquete como faltante para continuar.",
+    "routeStarted": "Ruta iniciada — la primera parada está lista.",
+    "byStop": "Parada {{sequence}} · {{name}}",
+    "strictModeLabel": "Exigir que se escaneen todos los paquetes"
+  },
+  "fleetMap": {
+    "title": "Mapa de flota en vivo",
+    "subtitle": "Ubicación de conductores y progreso de rutas en tiempo real",
+    "onTheRoad": "En camino",
+    "noActiveRoute": "Sin ruta activa",
+    "noLiveLocations": "Aún no hay ubicaciones en vivo — esto se llena automáticamente cuando un conductor tiene una ruta activa."
+  },
+  "driverMenu": {
+    "title": "Menú",
+    "currentStop": "Ruta actual",
+    "myRouteAndStops": "Paradas y paquetes",
+    "contactDispatch": "Contactar despacho",
+    "noDispatchPhone": "Aún no hay un número de despacho configurado — pide a tu gerente que agregue uno en Configuración.",
+    "preferences": "Preferencias"
   }
 }

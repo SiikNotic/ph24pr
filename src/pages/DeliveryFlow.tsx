@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowLeft, CheckCircle2, KeyRound, Loader2, MapPin, MapPinOff, PackageCheck, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, KeyRound, Loader2, MapPin, MapPinOff, Navigation2, PackageCheck, ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { PriorityBadge } from '@/components/shared/StatusBadge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -25,6 +25,9 @@ import { PhotoCapture } from '@/components/delivery/PhotoCapture'
 import { SignaturePad } from '@/components/delivery/SignaturePad'
 import { PinInput } from '@/components/delivery/PinInput'
 import { AddressIssueDialog } from '@/components/routes/RouteDetailSheet'
+import { SelfLocationMap } from '@/components/driver/SelfLocationMap'
+import { getNextStop } from '@/lib/routeProgress'
+import { directionsUrl } from '@/lib/maps'
 
 export default function DeliveryFlow() {
   const { t } = useTranslation()
@@ -83,14 +86,15 @@ export default function DeliveryFlow() {
 
   function goToNextStop() {
     if (!route) return
-    const remaining = route.stops
-      .filter((s) => s.id !== stopId && (s.status === 'pending' || s.status === 'out_for_delivery' || s.status === 'scanned'))
-      .sort((a, b) => a.sequence - b.sequence)
-    if (remaining.length > 0) {
-      navigate(`/routes/${routeId}/deliver/${remaining[0].id}`)
+    const next = getNextStop(route, stopId)
+    if (next) {
+      navigate(`/routes/${routeId}/deliver/${next.id}`)
     } else {
+      // No stops left to attempt — back to the driver's home screen, which
+      // now shows the "return to station" wrap-up on its own (derived from
+      // the route's status/stops, not a one-off toast-and-redirect here).
       toast.success(t('delivery.allStopsComplete'))
-      navigate('/routes')
+      navigate('/')
     }
   }
 
@@ -147,8 +151,8 @@ export default function DeliveryFlow() {
   return (
     <div className="mx-auto max-w-lg">
       <PageHeader
-        title={t('delivery.title')}
-        subtitle={`${t('routeBuilder.deliveriesCount')} · ${route.name}`}
+        title={t('delivery.stopOfTotal', { n: stop.sequence, total: route.stops.length })}
+        subtitle={route.name}
         actions={
           <Button variant="ghost" size="sm" asChild>
             <Link to="/routes">
@@ -193,6 +197,18 @@ export default function DeliveryFlow() {
             <MapPinOff className="h-3.5 w-3.5" /> {t('addressIssue.reportIssue')}
           </Button>
         </div>
+      </div>
+
+      {/* A "you are here" map plus a hand-off to the device's own maps app
+          for real turn-by-turn — see SelfLocationMap for why there's no
+          destination pin (no geocoded stop coordinates in this app). */}
+      <div className="mb-4 flex flex-col gap-2">
+        <SelfLocationMap className="h-36 w-full" />
+        <Button variant="outline" size="lg" className="w-full" asChild>
+          <a href={directionsUrl(stop.address)} target="_blank" rel="noreferrer">
+            <Navigation2 className="h-4 w-4" /> {t('delivery.navigate')}
+          </a>
+        </Button>
       </div>
 
       <AddressIssueDialog stop={addressIssueOpen ? stop : null} onClose={() => setAddressIssueOpen(false)} />

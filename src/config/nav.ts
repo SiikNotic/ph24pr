@@ -31,6 +31,3 @@ export const NAV_ITEMS: NavItem[] = [
   { section: 'settings', path: '/settings', icon: Settings, labelKey: 'nav.settings' },
   { section: 'help', path: '/help', icon: HelpCircle, labelKey: 'nav.help' },
 ]
-
-// Subset shown in the driver's mobile bottom tab bar.
-export const DRIVER_BOTTOM_NAV: Section[] = ['dashboard', 'routes', 'availability', 'notifications']

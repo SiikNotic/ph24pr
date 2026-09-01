@@ -18,6 +18,7 @@ import {
   useUpdateOrgSettings,
   useUpdateDeliverySettings,
   useUpdateFailedDeliverySettings,
+  useUpdateLoadingSettings,
   useTeamMembers,
   useUpdateMemberRole,
 } from '@/hooks/useSettings'
@@ -39,6 +40,7 @@ export default function Settings() {
   const updateOrg = useUpdateOrgSettings()
   const updateDeliverySettings = useUpdateDeliverySettings()
   const updateFailedDeliverySettings = useUpdateFailedDeliverySettings()
+  const updateLoadingSettings = useUpdateLoadingSettings()
   const { data: members = [] } = useTeamMembers()
   const updateRole = useUpdateMemberRole()
 
@@ -50,6 +52,8 @@ export default function Settings() {
   const [waitSeconds, setWaitSeconds] = useState(180)
   const [returnReasonOptions, setReturnReasonOptions] = useState<string[]>([])
   const [newReturnReason, setNewReturnReason] = useState('')
+  const [requireAllPackagesScanned, setRequireAllPackagesScanned] = useState(true)
+  const [dispatchPhone, setDispatchPhone] = useState('')
 
   useEffect(() => {
     if (org) {
@@ -59,8 +63,17 @@ export default function Settings() {
       setLeaveLocationOptions(org.leaveLocationOptions)
       setWaitSeconds(org.customerNoResponseWaitSeconds)
       setReturnReasonOptions(org.returnReasonOptions)
+      setRequireAllPackagesScanned(org.requireAllPackagesScanned)
+      setDispatchPhone(org.dispatchPhone ?? '')
     }
   }, [org])
+
+  function saveLoadingSettings(next: { requireAllPackagesScanned: boolean; dispatchPhone: string }) {
+    updateLoadingSettings.mutate(next, {
+      onSuccess: () => toast.success(t('common.success')),
+      onError: (e: any) => toast.error(e.message ?? t('common.error')),
+    })
+  }
 
   function saveDeliverySettings(next: { requirePhotoForInHand: boolean; leaveLocationOptions: string[] }) {
     updateDeliverySettings.mutate(next, {
@@ -208,6 +221,52 @@ export default function Settings() {
                     />
                     <Button type="button" variant="outline" onClick={addLocation} disabled={!newLocation.trim()}>
                       <Plus className="h-4 w-4" /> {t('common.add')}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {can('settings', 'edit') && (
+            <Card className="mt-4 max-w-xl">
+              <CardHeader>
+                <CardTitle className="text-base">{t('loading.title')}</CardTitle>
+                <CardDescription>{t('loading.subtitle')}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div>
+                    <Label className="cursor-pointer">{t('loading.strictModeLabel')}</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {requireAllPackagesScanned ? t('loading.strictBlockedHint') : t('loading.lenientBlockedHint')}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={requireAllPackagesScanned}
+                    onCheckedChange={(checked) => {
+                      setRequireAllPackagesScanned(checked)
+                      saveLoadingSettings({ requireAllPackagesScanned: checked, dispatchPhone })
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>{t('driverMenu.contactDispatch')}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="tel"
+                      value={dispatchPhone}
+                      onChange={(e) => setDispatchPhone(e.target.value)}
+                      placeholder="+1 787 555 0100"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => saveLoadingSettings({ requireAllPackagesScanned, dispatchPhone })}
+                      disabled={updateLoadingSettings.isPending}
+                    >
+                      {updateLoadingSettings.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {t('common.saveChanges')}
                     </Button>
                   </div>
                 </div>

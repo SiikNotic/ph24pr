@@ -274,7 +274,10 @@
     "waitPresetCustom": "Custom",
     "customWaitSeconds": "Custom wait time (seconds)",
     "returnReasonOptions": "Other return reasons",
-    "addReturnReasonPlaceholder": "e.g. Pharmacy closed"
+    "addReturnReasonPlaceholder": "e.g. Pharmacy closed",
+    "locationUnavailable": "Live location unavailable",
+    "navigate": "Navigate",
+    "stopOfTotal": "Stop {{n}} of {{total}}"
   },
   "failedDelivery": {
     "callCustomer": "Call Customer",
@@ -514,5 +517,59 @@
     "searchPlaceholder": "Search articles…",
     "categories": "Categories",
     "noArticles": "No articles found"
+  },
+  "driverHome": {
+    "noRouteTitle": "No Route Assigned",
+    "noRouteSubtitle": "You don't have a route assigned right now.",
+    "noRouteHint": "Check back once dispatch assigns you a route for today.",
+    "routeCompleteTitle": "Route Complete",
+    "routeCompleteSubtitle": "Nice work — every stop on today's route is done.",
+    "returningTitle": "All Stops Done",
+    "returningSubtitle": "Head back to the station when you're ready.",
+    "assignedStops": "{{count}} stops",
+    "assignedPackages": "{{count}} packages",
+    "startingStation": "Starting station",
+    "startLoading": "Start Route"
+  },
+  "loading": {
+    "title": "Load the Vehicle",
+    "subtitle": "Scan every package before you head out",
+    "scannedCount": "{{done}} / {{total}} packages scanned",
+    "accountedCount": "{{done}} / {{total}} packages accounted for",
+    "allLoaded": "All packages loaded",
+    "packageNotPresent": "Package not present",
+    "missingHint": "Reported missing — scan it here if you find it.",
+    "missingBadge": "Missing",
+    "missingDialogTitle": "Report Package Missing",
+    "missingDialogSubtitle": "This is recorded and dispatch is notified right away.",
+    "missingReason": "Reason",
+    "missingReasonOptions": {
+      "not_on_shelf": "Not on the shelf",
+      "not_loaded": "Not loaded by warehouse",
+      "damaged": "Damaged / unusable",
+      "other": "Other"
+    },
+    "missingNotes": "Notes (optional)",
+    "confirmMissing": "Report Missing",
+    "strictBlockedHint": "Every package must be scanned before you can start this route. Contact dispatch about any missing package.",
+    "lenientBlockedHint": "Scan or report every package as missing to continue.",
+    "routeStarted": "Route started — first stop is up next.",
+    "byStop": "Stop {{sequence}} · {{name}}",
+    "strictModeLabel": "Require every package scanned"
+  },
+  "fleetMap": {
+    "title": "Live Fleet Map",
+    "subtitle": "Real-time driver locations and route progress",
+    "onTheRoad": "On the Road",
+    "noActiveRoute": "No active route",
+    "noLiveLocations": "No live driver locations yet — this fills in automatically once a driver is on an active route."
+  },
+  "driverMenu": {
+    "title": "Menu",
+    "currentStop": "Current Route",
+    "myRouteAndStops": "Stops & Packages",
+    "contactDispatch": "Contact Dispatch",
+    "noDispatchPhone": "No dispatch phone number is configured yet — ask your manager to add one in Settings.",
+    "preferences": "Preferences"
   }
 }

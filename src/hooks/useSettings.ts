@@ -14,6 +14,8 @@ export function useOrgSettings() {
         leaveLocationOptions: (data.leave_location_options as string[]) ?? [],
         customerNoResponseWaitSeconds: (data.customer_no_response_wait_seconds as number) ?? 180,
         returnReasonOptions: (data.return_reason_options as string[]) ?? [],
+        requireAllPackagesScanned: (data.require_all_packages_scanned as boolean) ?? true,
+        dispatchPhone: (data.dispatch_phone as string) || undefined,
       }
     },
   })
@@ -66,6 +68,28 @@ export function useUpdateFailedDeliverySettings() {
         .update({
           customer_no_response_wait_seconds: input.customerNoResponseWaitSeconds,
           return_reason_options: input.returnReasonOptions,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', true)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['org_settings'] }),
+  })
+}
+
+// Configures the pre-route package-loading workflow: whether a driver can
+// start a route while a package is reported missing, or every package
+// must be scanned/accounted for first. Also carries the optional dispatch
+// contact number shown in the driver app's "Contact Dispatch" menu item.
+export function useUpdateLoadingSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { requireAllPackagesScanned: boolean; dispatchPhone: string }) => {
+      const { error } = await supabase
+        .from('org_settings')
+        .update({
+          require_all_packages_scanned: input.requireAllPackagesScanned,
+          dispatch_phone: input.dispatchPhone || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', true)

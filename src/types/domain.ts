@@ -163,6 +163,7 @@ export type AuditAction =
   | 'delivery_failed'
   | 'return_received'
   | 'return_resolved'
+  | 'package_load_issue_reported'
 
 // The unified, cross-entity audit trail — every status/ownership/location
 // change the system records, never updated or deleted. The
@@ -197,6 +198,27 @@ export interface Package {
   scannedAt?: string
   status: StopStatus
   createdAt: string
+  // Set when the driver reports this package as not physically present
+  // while loading the vehicle (report_package_missing()); cleared the
+  // moment it's later found and scanned. Never a duplicate package or a
+  // fake delivery — just a flag dispatch gets notified about.
+  loadIssueReportedAt?: string
+  loadIssueReason?: string
+  loadIssueNotes?: string
+}
+
+// One live/last-known GPS pin per driver, for the dispatch fleet map.
+// Written only by update_driver_location() while the driver's browser has
+// geolocation permission and an active route — see schema-notes.md.
+export interface DriverLocation {
+  driverId: string
+  routeId?: string
+  lat: number
+  lng: number
+  heading?: number
+  speed?: number
+  accuracy?: number
+  updatedAt: string
 }
 
 export type ReassignmentReason =

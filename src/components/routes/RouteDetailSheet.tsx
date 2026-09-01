@@ -111,7 +111,11 @@ export function RouteDetailSheet({
               <div className="flex flex-wrap items-center gap-2">
                 {canManage && <p className="flex-1 text-sm font-semibold">{route.driverName ?? t('common.unassigned')}</p>}
                 {canReassign && <ReassignDriverDialog route={route} />}
-                {canRunRoute && route.status === 'assigned' && (
+                {/* Manager-only: a driver starts a route through their own
+                    dedicated flow (package loading first — see
+                    RouteAssignedSummary/PackageLoadingScreen), never this
+                    direct shortcut, so the loading gate can't be bypassed. */}
+                {canManage && route.status === 'assigned' && (
                   <Button
                     size="sm"
                     variant="secondary"
