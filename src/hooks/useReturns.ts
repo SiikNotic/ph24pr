@@ -14,6 +14,9 @@ export function useReturns() {
   })
 }
 
+// Manual, back-office-only return entry (not tied to a driver's failed-
+// delivery report -- that always goes through report_delivery_failure()
+// instead, which enforces the "customer does not respond" countdown).
 export function useCreateReturn() {
   const qc = useQueryClient()
   return useMutation({
@@ -25,6 +28,7 @@ export function useCreateReturn() {
       driverId?: string
       driverName?: string
       reason: ReturnReason
+      customReason?: string
       notes?: string
       isControlledSubstance: boolean
     }) => {
@@ -36,6 +40,8 @@ export function useCreateReturn() {
         driver_id: input.driverId || null,
         driver_name: input.driverName || null,
         reason: input.reason,
+        custom_reason: input.customReason || null,
+        status: 'pending_return',
         notes: input.notes || null,
         is_controlled_substance: input.isControlledSubstance,
       })
@@ -45,6 +51,25 @@ export function useCreateReturn() {
   })
 }
 
+// The only path from "Pending Return" to "Returned" -- records that the
+// package has physically come back to the station, and closes out the
+// linked stop too.
+export function useMarkReturnReceived() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes?: string }) => {
+      const { error } = await supabase.rpc('mark_return_received', { p_return_id: id, p_notes: notes || null })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['returns'] })
+      qc.invalidateQueries({ queryKey: ['routes'] })
+    },
+  })
+}
+
+// Only meaningful once a return is 'returned' -- you can't restock, dispose,
+// or reschedule redelivery for a package the driver still physically has.
 export function useResolveReturn() {
   const qc = useQueryClient()
   return useMutation({

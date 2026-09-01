@@ -17,6 +17,7 @@ import {
   useOrgSettings,
   useUpdateOrgSettings,
   useUpdateDeliverySettings,
+  useUpdateFailedDeliverySettings,
   useTeamMembers,
   useUpdateMemberRole,
 } from '@/hooks/useSettings'
@@ -36,6 +37,7 @@ export default function Settings() {
   const { data: org } = useOrgSettings()
   const updateOrg = useUpdateOrgSettings()
   const updateDeliverySettings = useUpdateDeliverySettings()
+  const updateFailedDeliverySettings = useUpdateFailedDeliverySettings()
   const { data: members = [] } = useTeamMembers()
   const updateRole = useUpdateMemberRole()
 
@@ -44,6 +46,9 @@ export default function Settings() {
   const [requirePhotoForInHand, setRequirePhotoForInHand] = useState(false)
   const [leaveLocationOptions, setLeaveLocationOptions] = useState<string[]>([])
   const [newLocation, setNewLocation] = useState('')
+  const [waitSeconds, setWaitSeconds] = useState(180)
+  const [returnReasonOptions, setReturnReasonOptions] = useState<string[]>([])
+  const [newReturnReason, setNewReturnReason] = useState('')
 
   useEffect(() => {
     if (org) {
@@ -51,6 +56,8 @@ export default function Settings() {
       setTimezone(org.timezone)
       setRequirePhotoForInHand(org.requirePhotoForInHand)
       setLeaveLocationOptions(org.leaveLocationOptions)
+      setWaitSeconds(org.customerNoResponseWaitSeconds)
+      setReturnReasonOptions(org.returnReasonOptions)
     }
   }, [org])
 
@@ -79,6 +86,33 @@ export default function Settings() {
   function toggleRequirePhoto(checked: boolean) {
     setRequirePhotoForInHand(checked)
     saveDeliverySettings({ requirePhotoForInHand: checked, leaveLocationOptions })
+  }
+
+  function saveFailedDeliverySettings(next: { customerNoResponseWaitSeconds: number; returnReasonOptions: string[] }) {
+    updateFailedDeliverySettings.mutate(next, {
+      onSuccess: () => toast.success(t('common.success')),
+      onError: (e: any) => toast.error(e.message ?? t('common.error')),
+    })
+  }
+
+  function setWaitPreset(seconds: number) {
+    setWaitSeconds(seconds)
+    saveFailedDeliverySettings({ customerNoResponseWaitSeconds: seconds, returnReasonOptions })
+  }
+
+  function addReturnReason() {
+    const value = newReturnReason.trim()
+    if (!value || returnReasonOptions.includes(value)) return
+    const next = [...returnReasonOptions, value]
+    setReturnReasonOptions(next)
+    setNewReturnReason('')
+    saveFailedDeliverySettings({ customerNoResponseWaitSeconds: waitSeconds, returnReasonOptions: next })
+  }
+
+  function removeReturnReason(value: string) {
+    const next = returnReasonOptions.filter((r) => r !== value)
+    setReturnReasonOptions(next)
+    saveFailedDeliverySettings({ customerNoResponseWaitSeconds: waitSeconds, returnReasonOptions: next })
   }
 
   return (
@@ -172,6 +206,78 @@ export default function Settings() {
                       onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addLocation())}
                     />
                     <Button type="button" variant="outline" onClick={addLocation} disabled={!newLocation.trim()}>
+                      <Plus className="h-4 w-4" /> {t('common.add')}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {can('settings', 'edit') && (
+            <Card className="mt-4 max-w-xl">
+              <CardHeader>
+                <CardTitle className="text-base">{t('delivery.noResponseWaitTitle')}</CardTitle>
+                <CardDescription>{t('delivery.noResponseWaitHint')}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex flex-wrap gap-2">
+                    {[60, 180, 300].map((seconds) => (
+                      <Button
+                        key={seconds}
+                        type="button"
+                        size="sm"
+                        variant={waitSeconds === seconds ? 'default' : 'outline'}
+                        onClick={() => setWaitPreset(seconds)}
+                      >
+                        {t(`delivery.waitPreset_${seconds / 60}`)}
+                      </Button>
+                    ))}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={![60, 180, 300].includes(waitSeconds) ? 'default' : 'outline'}
+                      onClick={() => setWaitPreset(waitSeconds)}
+                    >
+                      {t('delivery.waitPresetCustom')}
+                    </Button>
+                  </div>
+                  {![60, 180, 300].includes(waitSeconds) && (
+                    <div className="mt-1 flex flex-col gap-1.5">
+                      <Label>{t('delivery.customWaitSeconds')}</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={waitSeconds}
+                        onChange={(e) => setWaitSeconds(Math.max(1, Number(e.target.value) || 1))}
+                        onBlur={() => saveFailedDeliverySettings({ customerNoResponseWaitSeconds: waitSeconds, returnReasonOptions })}
+                        className="w-32"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label>{t('delivery.returnReasonOptions')}</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {returnReasonOptions.map((reason) => (
+                      <Badge key={reason} variant="secondary" className="gap-1 py-1">
+                        {reason}
+                        <button onClick={() => removeReturnReason(reason)} className="ml-1 hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newReturnReason}
+                      onChange={(e) => setNewReturnReason(e.target.value)}
+                      placeholder={t('delivery.addReturnReasonPlaceholder')}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addReturnReason())}
+                    />
+                    <Button type="button" variant="outline" onClick={addReturnReason} disabled={!newReturnReason.trim()}>
                       <Plus className="h-4 w-4" /> {t('common.add')}
                     </Button>
                   </div>

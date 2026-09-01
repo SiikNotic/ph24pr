@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { mapRoute, mapAssignmentEvent } from '@/lib/mappers'
-import type { ReassignmentReason, RouteStatus, StopStatus } from '@/types/domain'
+import { mapRoute, mapAssignmentEvent, mapStop } from '@/lib/mappers'
+import type { ReassignmentReason, ReturnReason, RouteStatus } from '@/types/domain'
 
 // Explicit column list (never `*`) so this never touches route_stops's
 // delivery_pin column, which has no SELECT grant for authenticated/anon —
 // a driver is never meant to see the PIN, only compare against it via the
 // complete_delivery() RPC.
 export const STOP_COLUMNS =
-  'id, route_id, sequence, customer_id, customer_name, address, priority, status, package_count, ' +
+  'id, route_id, sequence, customer_id, customer_name, customer_phone, address, priority, status, package_count, ' +
   'is_controlled_substance, requires_signature, scheduled_window_start, scheduled_window_end, ' +
   'delivered_at, signed_by, notes, failure_reason, delivery_method, delivery_photo_data, ' +
-  'delivery_leave_location, delivery_signature_data, recipient_name'
+  'delivery_leave_location, delivery_signature_data, recipient_name, return_wait_started_at'
 
 const ROUTE_SELECT = `*, drivers(id, profiles(full_name)), route_stops(${STOP_COLUMNS})`
 
@@ -146,37 +146,52 @@ export function useUpdateRouteStatus() {
   })
 }
 
-export function useUpdateStop() {
+// Starts (or resumes) the "customer does not respond" countdown for a stop.
+// Idempotent server-side: calling it again after the app reloads just
+// returns the original start time rather than restarting the clock.
+export function useStartReturnWait() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (stopId: string) => {
+      const { data, error } = await supabase.rpc('start_return_wait', { p_stop_id: stopId })
+      if (error) throw error
+      return mapStop(data)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['routes'] }),
+  })
+}
+
+// The only path that turns a delivery into "Pending Return". The database
+// re-validates the "customer does not respond" wait itself -- it cannot be
+// completed before the company-configured countdown has actually elapsed,
+// no matter what the client sends.
+export function useReportDeliveryFailure() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({
       stopId,
-      status,
-      signedBy,
-      failureReason,
+      reason,
+      customReason,
       notes,
     }: {
       stopId: string
-      status: StopStatus
-      signedBy?: string
-      failureReason?: string
+      reason: ReturnReason
+      customReason?: string
       notes?: string
     }) => {
-      const patch: Record<string, any> = { status }
-      if (status === 'delivered') {
-        patch.delivered_at = new Date().toISOString()
-        if (signedBy) patch.signed_by = signedBy
-      }
-      if (status === 'failed' || status === 'returned') {
-        if (failureReason) patch.failure_reason = failureReason
-      }
-      if (notes) patch.notes = notes
-      const { error } = await supabase.from('route_stops').update(patch).eq('id', stopId)
+      const { data, error } = await supabase.rpc('report_delivery_failure', {
+        p_stop_id: stopId,
+        p_reason: reason,
+        p_custom_reason: customReason || null,
+        p_notes: notes || null,
+      })
       if (error) throw error
+      return mapStop(data)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['routes'] })
       qc.invalidateQueries({ queryKey: ['returns'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }

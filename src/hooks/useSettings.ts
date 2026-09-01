@@ -12,6 +12,8 @@ export function useOrgSettings() {
         timezone: data.timezone as string,
         requirePhotoForInHand: data.require_photo_for_in_hand as boolean,
         leaveLocationOptions: (data.leave_location_options as string[]) ?? [],
+        customerNoResponseWaitSeconds: (data.customer_no_response_wait_seconds as number) ?? 180,
+        returnReasonOptions: (data.return_reason_options as string[]) ?? [],
       }
     },
   })
@@ -43,6 +45,27 @@ export function useUpdateDeliverySettings() {
         .update({
           require_photo_for_in_hand: input.requirePhotoForInHand,
           leave_location_options: input.leaveLocationOptions,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', true)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['org_settings'] }),
+  })
+}
+
+// Configures the failed-delivery flow: how long the "customer does not
+// respond" countdown runs, and the company's own extra "Other" return
+// reasons a driver can pick from.
+export function useUpdateFailedDeliverySettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { customerNoResponseWaitSeconds: number; returnReasonOptions: string[] }) => {
+      const { error } = await supabase
+        .from('org_settings')
+        .update({
+          customer_no_response_wait_seconds: input.customerNoResponseWaitSeconds,
+          return_reason_options: input.returnReasonOptions,
           updated_at: new Date().toISOString(),
         })
         .eq('id', true)

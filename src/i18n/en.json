@@ -256,7 +256,27 @@
     "requirePhotoForInHand": "Require photo for in-hand deliveries",
     "requirePhotoForInHandHint": "When on, drivers must also take a photo even when the package was handed directly to the recipient.",
     "leaveLocationOptions": "Leave-at-location options",
-    "addLocationPlaceholder": "e.g. Side entrance"
+    "addLocationPlaceholder": "e.g. Side entrance",
+    "noResponseWaitTitle": "Customer no-response wait time",
+    "noResponseWaitHint": "How long a driver must wait after selecting \"Customer Does Not Respond\" before the delivery can be marked Pending Return.",
+    "waitPreset_1": "1 minute",
+    "waitPreset_3": "3 minutes",
+    "waitPreset_5": "5 minutes",
+    "waitPresetCustom": "Custom",
+    "customWaitSeconds": "Custom wait time (seconds)",
+    "returnReasonOptions": "Other return reasons",
+    "addReturnReasonPlaceholder": "e.g. Pharmacy closed"
+  },
+  "failedDelivery": {
+    "callCustomer": "Call Customer",
+    "messageCustomer": "Message Customer",
+    "noPhone": "No phone number on file for this customer.",
+    "startWait": "Start Waiting Period",
+    "waitHint": "This can't be marked Pending Return until the waiting period ends.",
+    "waiting": "Waiting for customer response…",
+    "timeRemaining": "{{time}} remaining",
+    "waitComplete": "Waiting period complete — this can now be reported as Pending Return.",
+    "confirmPendingReturn": "Mark as Pending Return"
   },
   "status": {
     "draft": "Draft",
@@ -268,6 +288,7 @@
     "en_route": "En Route",
     "delivered": "Delivered",
     "failed": "Failed",
+    "pending_return": "Pending Return",
     "returned": "Returned",
     "available": "Available",
     "on_route": "On Route",
@@ -277,7 +298,6 @@
     "unavailable": "Unavailable",
     "time_off": "Time Off",
     "partial": "Partial",
-    "pending_review": "Pending Review",
     "restocked": "Restocked",
     "disposed": "Disposed",
     "redelivery_scheduled": "Redelivery Scheduled"
@@ -334,11 +354,19 @@
     "resolve": "Resolve",
     "resolution": "Resolution",
     "noReturns": "No returns match your filters",
+    "markReturned": "Mark as Returned",
+    "received": "Received",
+    "receivedBy": "Received by {{name}} · {{date}}",
+    "selectReason": "Select a reason",
+    "customReasonLabel": "Specify reason",
+    "otherReasonPlaceholder": "Describe the reason",
     "reasons": {
       "customer_unavailable": "Customer unavailable",
-      "refused": "Refused by recipient",
-      "wrong_address": "Wrong address",
-      "damaged": "Damaged in transit",
+      "no_response": "Customer Did Not Respond",
+      "refused": "Customer rejected package",
+      "wrong_address": "Package does not belong to the address",
+      "access_denied": "Unable to access property/building",
+      "damaged": "Package damaged",
       "expired": "Expired product",
       "other": "Other"
     }

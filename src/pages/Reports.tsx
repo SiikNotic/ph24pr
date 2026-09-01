@@ -43,7 +43,7 @@ export default function Reports() {
         const entry = map.get(r.date) ?? { date: r.date, delivered: 0, failed: 0, total: 0 }
         entry.total += 1
         if (s.status === 'delivered') entry.delivered += 1
-        if (s.status === 'failed' || s.status === 'returned') entry.failed += 1
+        if (s.status === 'failed' || s.status === 'pending_return' || s.status === 'returned') entry.failed += 1
         map.set(r.date, entry)
       }
     }
@@ -65,7 +65,7 @@ export default function Reports() {
         return {
           name: d.fullName,
           delivered: stops.filter((s) => s.status === 'delivered').length,
-          failed: stops.filter((s) => s.status === 'failed' || s.status === 'returned').length,
+          failed: stops.filter((s) => s.status === 'failed' || s.status === 'pending_return' || s.status === 'returned').length,
         }
       })
       .filter((d) => d.delivered + d.failed > 0)

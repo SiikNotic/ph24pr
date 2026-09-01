@@ -101,9 +101,9 @@ export default function Dashboard() {
   const activeRoutes = routes.filter((r) => r.status === 'in_progress' || r.status === 'scheduled')
   const allStopsToday = routes.flatMap((r) => r.stops)
   const deliveredToday = allStopsToday.filter((s) => s.status === 'delivered').length
-  const failedToday = allStopsToday.filter((s) => s.status === 'failed').length
+  const failedToday = allStopsToday.filter((s) => s.status === 'failed' || s.status === 'pending_return').length
   const onTimeRate = allStopsToday.length ? Math.round((deliveredToday / allStopsToday.length) * 100) : 0
-  const openReturns = returns.filter((r) => r.status === 'pending_review').length
+  const openReturns = returns.filter((r) => r.status === 'pending_return').length
   const availableDrivers = drivers.filter((d) => d.status === 'available').length
   const pendingStops = allStopsToday.filter((s) => s.status === 'pending').length
 

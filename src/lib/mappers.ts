@@ -64,6 +64,7 @@ export function mapStop(row: any): RouteStop {
     sequence: row.sequence,
     customerId: row.customer_id,
     customerName: row.customer_name,
+    customerPhone: row.customer_phone ?? undefined,
     address: row.address,
     priority: row.priority,
     status: row.status,
@@ -81,6 +82,7 @@ export function mapStop(row: any): RouteStop {
     deliveryPhotoData: row.delivery_photo_data ?? undefined,
     deliveryLeaveLocation: row.delivery_leave_location ?? undefined,
     deliverySignatureData: row.delivery_signature_data ?? undefined,
+    returnWaitStartedAt: row.return_wait_started_at ?? undefined,
   }
 }
 
@@ -163,10 +165,13 @@ export function mapReturn(row: any): ReturnItem {
     driverId: row.driver_id ?? undefined,
     driverName: row.driver_name ?? undefined,
     reason: row.reason,
+    customReason: row.custom_reason ?? undefined,
     status: row.status,
     notes: row.notes ?? undefined,
     isControlledSubstance: row.is_controlled_substance,
     createdAt: row.created_at,
+    receivedAt: row.received_at ?? undefined,
+    receivedByName: row.received_by_name ?? undefined,
     resolvedAt: row.resolved_at ?? undefined,
     resolvedBy: row.resolved_by ?? undefined,
   }

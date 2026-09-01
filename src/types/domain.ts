@@ -60,7 +60,11 @@ export interface Driver {
 }
 
 export type RouteStatus = 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'canceled'
-export type StopStatus = 'pending' | 'en_route' | 'delivered' | 'failed' | 'returned'
+// 'failed' is legacy (pre failed-delivery-handling data) and no longer
+// produced by the app: a failed attempt now goes straight to
+// 'pending_return' (the driver still has the package). 'returned' means the
+// package has physically come back to the station.
+export type StopStatus = 'pending' | 'en_route' | 'delivered' | 'failed' | 'pending_return' | 'returned'
 export type Priority = 'standard' | 'urgent' | 'stat'
 
 // The proof required to complete a delivery, configured per delivery
@@ -75,6 +79,7 @@ export interface RouteStop {
   sequence: number
   customerId: string
   customerName: string
+  customerPhone?: string
   address: string
   priority: Priority
   status: StopStatus
@@ -92,6 +97,10 @@ export interface RouteStop {
   deliveryPhotoData?: string
   deliveryLeaveLocation?: string
   deliverySignatureData?: string
+  // Set while a "Customer Does Not Respond" countdown is running for this
+  // stop; cleared once the failure is reported. Never exposed as a way to
+  // skip the wait -- report_delivery_failure() re-checks it server-side.
+  returnWaitStartedAt?: string
 }
 
 export interface Package {
@@ -147,15 +156,24 @@ export interface DeliveryRoute {
   estimatedDurationMin?: number
 }
 
+// 'customer_unavailable' and 'expired' are legacy values kept for old data;
+// the failed-delivery flow now offers the reasons below instead.
 export type ReturnReason =
   | 'customer_unavailable'
+  | 'no_response'
   | 'refused'
   | 'wrong_address'
+  | 'access_denied'
   | 'damaged'
   | 'expired'
   | 'other'
 
-export type ReturnStatus = 'pending_review' | 'restocked' | 'disposed' | 'redelivery_scheduled'
+// pending_return: the driver still has the package (a failed delivery
+// attempt was just reported). returned: the package has physically come
+// back to the station and that hand-back has been recorded. Only from
+// 'returned' can a return be further resolved as restocked/disposed/
+// redelivery_scheduled.
+export type ReturnStatus = 'pending_return' | 'returned' | 'restocked' | 'disposed' | 'redelivery_scheduled'
 
 export interface ReturnItem {
   id: string
@@ -166,10 +184,13 @@ export interface ReturnItem {
   driverId?: string
   driverName?: string
   reason: ReturnReason
+  customReason?: string
   status: ReturnStatus
   notes?: string
   isControlledSubstance: boolean
   createdAt: string
+  receivedAt?: string
+  receivedByName?: string
   resolvedAt?: string
   resolvedBy?: string
 }

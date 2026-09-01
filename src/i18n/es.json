@@ -256,7 +256,27 @@
     "requirePhotoForInHand": "Requerir foto en entregas en mano",
     "requirePhotoForInHandHint": "Si está activado, los conductores también deben tomar una foto aunque el paquete se haya entregado directamente al destinatario.",
     "leaveLocationOptions": "Opciones de ubicación para dejar el paquete",
-    "addLocationPlaceholder": "ej. Entrada lateral"
+    "addLocationPlaceholder": "ej. Entrada lateral",
+    "noResponseWaitTitle": "Tiempo de espera por falta de respuesta del cliente",
+    "noResponseWaitHint": "Cuánto debe esperar el conductor después de seleccionar \"El Cliente No Responde\" antes de poder marcar la entrega como Devolución Pendiente.",
+    "waitPreset_1": "1 minuto",
+    "waitPreset_3": "3 minutos",
+    "waitPreset_5": "5 minutos",
+    "waitPresetCustom": "Personalizado",
+    "customWaitSeconds": "Tiempo de espera personalizado (segundos)",
+    "returnReasonOptions": "Otros motivos de devolución",
+    "addReturnReasonPlaceholder": "ej. Farmacia cerrada"
+  },
+  "failedDelivery": {
+    "callCustomer": "Llamar al Cliente",
+    "messageCustomer": "Enviar Mensaje al Cliente",
+    "noPhone": "No hay número de teléfono registrado para este cliente.",
+    "startWait": "Iniciar Período de Espera",
+    "waitHint": "Esto no se puede marcar como Devolución Pendiente hasta que termine el período de espera.",
+    "waiting": "Esperando respuesta del cliente…",
+    "timeRemaining": "{{time}} restante",
+    "waitComplete": "Período de espera completo — ahora se puede reportar como Devolución Pendiente.",
+    "confirmPendingReturn": "Marcar como Devolución Pendiente"
   },
   "status": {
     "draft": "Borrador",
@@ -268,6 +288,7 @@
     "en_route": "En Camino",
     "delivered": "Entregado",
     "failed": "Fallido",
+    "pending_return": "Devolución Pendiente",
     "returned": "Devuelto",
     "available": "Disponible",
     "on_route": "En Ruta",
@@ -277,7 +298,6 @@
     "unavailable": "No Disponible",
     "time_off": "Día Libre",
     "partial": "Parcial",
-    "pending_review": "Pendiente de Revisión",
     "restocked": "Reingresado a Stock",
     "disposed": "Desechado",
     "redelivery_scheduled": "Reentrega Programada"
@@ -334,11 +354,19 @@
     "resolve": "Resolver",
     "resolution": "Resolución",
     "noReturns": "Ninguna devolución coincide con tus filtros",
+    "markReturned": "Marcar como Devuelto",
+    "received": "Recibido",
+    "receivedBy": "Recibido por {{name}} · {{date}}",
+    "selectReason": "Selecciona un motivo",
+    "customReasonLabel": "Especificar motivo",
+    "otherReasonPlaceholder": "Describe el motivo",
     "reasons": {
       "customer_unavailable": "Cliente no disponible",
-      "refused": "Rechazado por el receptor",
-      "wrong_address": "Dirección incorrecta",
-      "damaged": "Dañado en tránsito",
+      "no_response": "El Cliente No Respondió",
+      "refused": "Cliente rechazó el paquete",
+      "wrong_address": "El paquete no corresponde a esta dirección",
+      "access_denied": "No se pudo acceder a la propiedad/edificio",
+      "damaged": "Paquete dañado",
       "expired": "Producto vencido",
       "other": "Otro"
     }

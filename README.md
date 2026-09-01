@@ -85,6 +85,28 @@ every rule (scanned first, the right proof, the correct PIN) holds even if
 something calls the API directly, not just through this UI. Completing a
 delivery automatically moves the driver on to their next pending stop.
 
+## Failed-delivery handling
+
+When a delivery can't be completed, "Report issue" walks the driver through
+it instead of just leaving the stop stuck. **Customer Does Not Respond** is
+its own guided flow: the driver can call or message the customer right from
+the dialog, then starts a countdown for however long the company has
+configured (Settings → Delivery Settings — 1/3/5 minutes or a custom
+duration); the "Mark as Pending Return" button stays disabled until that
+timer actually runs out, enforced by the database itself in
+`report_delivery_failure()`, not just by graying out a button. Every other
+reason — customer rejected the package, package damaged, wrong address,
+can't access the property, or one of the company's own configured "other"
+reasons — reports immediately.
+
+Either way the outcome is **Pending Return**, deliberately distinct from
+**Returned**: Pending Return means the driver still has the package in hand;
+Returned means it has physically come back to the station and dispatch has
+logged that hand-back via "Mark as Returned" on the Returns page. Only a
+Returned item can go on to be resolved as restocked, disposed, or scheduled
+for redelivery — you can't restock something the driver hasn't handed back
+yet.
+
 ## Getting started
 
 ```bash

@@ -73,6 +73,7 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
         sequence: nextSequence,
         customerId: customer.id,
         customerName: customer.name,
+        customerPhone: customer.contactPhone,
         address: `${customer.address}, ${customer.city}, ${customer.state}`,
         priority,
         packageCount,

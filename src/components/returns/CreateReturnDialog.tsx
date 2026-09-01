@@ -12,29 +12,37 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useCustomers } from '@/hooks/useCustomers'
 import { useCreateReturn } from '@/hooks/useReturns'
+import { useOrgSettings } from '@/hooks/useSettings'
+import { RETURN_REASONS } from '@/lib/returnReasons'
 import type { ReturnReason } from '@/types/domain'
-
-const REASONS: ReturnReason[] = ['customer_unavailable', 'refused', 'wrong_address', 'damaged', 'expired', 'other']
 
 export function CreateReturnDialog() {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [customerId, setCustomerId] = useState('')
   const [reason, setReason] = useState<ReturnReason>('other')
+  const [customReason, setCustomReason] = useState('')
   const [notes, setNotes] = useState('')
   const [controlled, setControlled] = useState(false)
 
   const { data: customers = [] } = useCustomers()
+  const { data: org } = useOrgSettings()
   const createReturn = useCreateReturn()
+  const configuredReasons = org?.returnReasonOptions ?? []
 
   async function handleSubmit() {
     const customer = customers.find((c) => c.id === customerId)
     if (!customer) {
+      toast.error(t('common.required'))
+      return
+    }
+    if (reason === 'other' && !customReason.trim()) {
       toast.error(t('common.required'))
       return
     }
@@ -43,12 +51,14 @@ export function CreateReturnDialog() {
         customerId: customer.id,
         customerName: customer.name,
         reason,
+        customReason: reason === 'other' ? customReason.trim() : undefined,
         notes,
         isControlledSubstance: controlled,
       })
       toast.success(t('common.success'))
       setOpen(false)
       setCustomerId('')
+      setCustomReason('')
       setNotes('')
       setControlled(false)
     } catch (e: any) {
@@ -90,7 +100,7 @@ export function CreateReturnDialog() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {REASONS.map((r) => (
+                {RETURN_REASONS.map((r) => (
                   <SelectItem key={r} value={r}>
                     {t(`returns.reasons.${r}`)}
                   </SelectItem>
@@ -98,6 +108,31 @@ export function CreateReturnDialog() {
               </SelectContent>
             </Select>
           </div>
+          {reason === 'other' && (
+            <div className="flex flex-col gap-1.5">
+              <Label>{t('returns.customReasonLabel')}</Label>
+              {configuredReasons.length > 0 ? (
+                <Select value={customReason} onValueChange={setCustomReason}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('returns.selectReason')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {configuredReasons.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder={t('returns.otherReasonPlaceholder')}
+                />
+              )}
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <Label>{t('common.notes')}</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />

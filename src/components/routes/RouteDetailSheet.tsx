@@ -1,8 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Navigation2, ShieldAlert, FileSignature, Package, Loader2, Play, CheckCircle2, KeyRound, Eye } from 'lucide-react'
+import {
+  Navigation2,
+  ShieldAlert,
+  FileSignature,
+  Package,
+  Loader2,
+  Play,
+  CheckCircle2,
+  KeyRound,
+  Eye,
+  Phone,
+  MessageSquare,
+  Timer,
+} from 'lucide-react'
 import {
   Sheet,
   SheetContent,
@@ -18,12 +31,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { StatusBadge, PriorityBadge } from '@/components/shared/StatusBadge'
 import { usePermissions } from '@/hooks/usePermissions'
-import { useAuthStore } from '@/store/auth'
-import { useUpdateRouteStatus, useUpdateStop } from '@/hooks/useRoutes'
-import { useCreateReturn } from '@/hooks/useReturns'
+import { useUpdateRouteStatus, useStartReturnWait, useReportDeliveryFailure } from '@/hooks/useRoutes'
 import { useDeliveryPin } from '@/hooks/useDelivery'
+import { useOrgSettings } from '@/hooks/useSettings'
 import { ReassignDriverDialog } from '@/components/routes/ReassignDriverDialog'
 import { AssignmentHistoryList } from '@/components/routes/AssignmentHistoryList'
+import { RETURN_REASONS } from '@/lib/returnReasons'
 import type { DeliveryRoute, ReturnReason, RouteStop } from '@/types/domain'
 import { formatDate } from '@/lib/format'
 
@@ -126,6 +139,11 @@ export function RouteDetailSheet({
                       <KeyRound className="h-3 w-3" /> {t('delivery.methods.pin_required')}
                     </Badge>
                   )}
+                  {stop.returnWaitStartedAt && (stop.status === 'pending' || stop.status === 'en_route') && (
+                    <Badge variant="warning" className="gap-1">
+                      <Timer className="h-3 w-3" /> {t('failedDelivery.waiting')}
+                    </Badge>
+                  )}
                 </div>
 
                 {stop.status === 'delivered' && stop.signedBy && (
@@ -166,7 +184,7 @@ export function RouteDetailSheet({
         </SheetContent>
       </Sheet>
 
-      <ReportIssueDialog stop={issueStop} route={route} onClose={() => setIssueStop(null)} />
+      <FailedDeliveryDialog stop={issueStop} onClose={() => setIssueStop(null)} />
     </>
   )
 }
@@ -193,47 +211,83 @@ function RevealPin({ stopId }: { stopId: string }) {
   )
 }
 
-const REASONS: ReturnReason[] = ['customer_unavailable', 'refused', 'wrong_address', 'damaged', 'expired', 'other']
-
-function ReportIssueDialog({
+// The full failed-delivery flow. Every reason ends in "Pending Return" (the
+// driver still has the package) via report_delivery_failure(), which is the
+// only place that ever creates the return record. "Customer Does Not
+// Respond" additionally requires the company-configured countdown to run
+// out first -- enforced server-side, not just by disabling this button.
+function FailedDeliveryDialog({
   stop,
-  route,
   onClose,
 }: {
   stop: RouteStop | null
-  route: DeliveryRoute
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const profile = useAuthStore((s) => s.profile)
-  const driver = useAuthStore((s) => s.driver)
-  const [reason, setReason] = useState<ReturnReason>('customer_unavailable')
+  const { data: org } = useOrgSettings()
+  const [reason, setReason] = useState<ReturnReason>('refused')
+  const [customReason, setCustomReason] = useState('')
   const [notes, setNotes] = useState('')
-  const updateStop = useUpdateStop()
-  const createReturn = useCreateReturn()
+  const [waitStartedAt, setWaitStartedAt] = useState<string | undefined>(undefined)
+  const [, forceTick] = useState(0)
+  const startWait = useStartReturnWait()
+  const reportFailure = useReportDeliveryFailure()
+
+  // Reset per-stop state when a new stop is opened, resuming any countdown
+  // that was already running (e.g. the dialog was closed and reopened).
+  useEffect(() => {
+    setReason('refused')
+    setCustomReason('')
+    setNotes('')
+    setWaitStartedAt(stop?.returnWaitStartedAt)
+  }, [stop?.id, stop?.returnWaitStartedAt])
+
+  const waitSeconds = org?.customerNoResponseWaitSeconds ?? 180
+  const remainingSeconds = waitStartedAt
+    ? Math.max(0, waitSeconds - Math.floor((Date.now() - new Date(waitStartedAt).getTime()) / 1000))
+    : waitSeconds
+  const waitDone = !!waitStartedAt && remainingSeconds <= 0
+
+  // Ticks the countdown display every second while it's actually running.
+  useEffect(() => {
+    if (reason !== 'no_response' || !waitStartedAt || waitDone) return
+    const id = setInterval(() => forceTick((x) => x + 1), 1000)
+    return () => clearInterval(id)
+  }, [reason, waitStartedAt, waitDone])
+
+  const configuredReasons = org?.returnReasonOptions ?? []
+  const otherReasonReady = reason !== 'other' || customReason.trim().length > 0
+  const noResponseReady = reason !== 'no_response' || waitDone
+  const canConfirm = otherReasonReady && noResponseReady
+
+  async function handleStartWait() {
+    if (!stop) return
+    try {
+      const updated = await startWait.mutateAsync(stop.id)
+      setWaitStartedAt(updated.returnWaitStartedAt)
+    } catch (e: any) {
+      toast.error(e.message ?? t('common.error'))
+    }
+  }
 
   async function confirm() {
     if (!stop) return
     try {
-      await updateStop.mutateAsync({ stopId: stop.id, status: 'failed', failureReason: t(`returns.reasons.${reason}`), notes })
-      await createReturn.mutateAsync({
+      await reportFailure.mutateAsync({
         stopId: stop.id,
-        routeId: route.id,
-        customerId: stop.customerId,
-        customerName: stop.customerName,
-        driverId: driver?.id,
-        driverName: profile?.fullName,
         reason,
-        notes,
-        isControlledSubstance: stop.isControlledSubstance,
+        customReason: reason === 'other' ? customReason.trim() : undefined,
+        notes: notes.trim() || undefined,
       })
       toast.success(t('common.success'))
-      setNotes('')
       onClose()
     } catch (e: any) {
       toast.error(e.message ?? t('common.error'))
     }
   }
+
+  const minutes = String(Math.floor(remainingSeconds / 60)).padStart(2, '0')
+  const seconds = String(remainingSeconds % 60).padStart(2, '0')
 
   return (
     <Dialog open={!!stop} onOpenChange={(o) => !o && onClose()}>
@@ -249,7 +303,7 @@ function ReportIssueDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {REASONS.map((r) => (
+                {RETURN_REASONS.map((r) => (
                   <SelectItem key={r} value={r}>
                     {t(`returns.reasons.${r}`)}
                   </SelectItem>
@@ -257,6 +311,73 @@ function ReportIssueDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {reason === 'no_response' && (
+            <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+              {stop?.customerPhone ? (
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={`tel:${stop.customerPhone}`}>
+                      <Phone className="h-3.5 w-3.5" /> {t('failedDelivery.callCustomer')}
+                    </a>
+                  </Button>
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={`sms:${stop.customerPhone}`}>
+                      <MessageSquare className="h-3.5 w-3.5" /> {t('failedDelivery.messageCustomer')}
+                    </a>
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">{t('failedDelivery.noPhone')}</p>
+              )}
+
+              {!waitStartedAt ? (
+                <Button size="sm" onClick={handleStartWait} disabled={startWait.isPending}>
+                  {startWait.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Timer className="h-3.5 w-3.5" />}
+                  {t('failedDelivery.startWait')}
+                </Button>
+              ) : waitDone ? (
+                <p className="flex items-center gap-1.5 text-sm text-success">
+                  <CheckCircle2 className="h-4 w-4" /> {t('failedDelivery.waitComplete')}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <p className="flex items-center gap-1.5 text-sm font-medium tabular-nums">
+                    <Timer className="h-4 w-4 text-warning" />
+                    {t('failedDelivery.timeRemaining', { time: `${minutes}:${seconds}` })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{t('failedDelivery.waitHint')}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {reason === 'other' && (
+            <div className="flex flex-col gap-1.5">
+              <Label>{t('returns.customReasonLabel')}</Label>
+              {configuredReasons.length > 0 ? (
+                <Select value={customReason} onValueChange={setCustomReason}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('returns.selectReason')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {configuredReasons.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder={t('returns.otherReasonPlaceholder')}
+                />
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
             <Label>{t('common.notes')}</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -266,9 +387,9 @@ function ReportIssueDialog({
           <Button variant="outline" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button variant="destructive" onClick={confirm} disabled={updateStop.isPending || createReturn.isPending}>
-            {(updateStop.isPending || createReturn.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t('common.confirm')}
+          <Button variant="destructive" onClick={confirm} disabled={!canConfirm || reportFailure.isPending}>
+            {reportFailure.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {reason === 'no_response' ? t('failedDelivery.confirmPendingReturn') : t('common.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

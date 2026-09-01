@@ -30,6 +30,7 @@ interface AddDeliveryInput {
   sequence: number
   customerId: string
   customerName: string
+  customerPhone?: string
   address: string
   priority: Priority
   packageCount: number
@@ -56,6 +57,7 @@ export function useAddDelivery() {
           sequence: input.sequence,
           customer_id: input.customerId,
           customer_name: input.customerName,
+          customer_phone: input.customerPhone || null,
           address: input.address,
           priority: input.priority,
           package_count: input.packageCount,
