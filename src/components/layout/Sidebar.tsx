@@ -1,6 +1,6 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Waypoints } from 'lucide-react'
+import { Waypoints, User as UserIcon, LogOut, ChevronsUpDown } from 'lucide-react'
 import { NAV_ITEMS } from '@/config/nav'
 import type { Section } from '@/lib/permissions'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -8,6 +8,13 @@ import { ROLE_LABELS } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { initials } from '@/lib/format'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 // Groups the flat nav list into labeled clusters — real information
 // hierarchy instead of one undifferentiated stack of links.
@@ -22,6 +29,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { t, i18n } = useTranslation()
   const { sections, role } = usePermissions()
   const profile = useAuthStore((s) => s.profile)
+  const signOut = useAuthStore((s) => s.signOut)
   const visible = new Set(sections)
 
   return (
@@ -85,17 +93,38 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
       {profile && role && (
         <div className="border-t border-sidebar-border p-3">
-          <div className="flex items-center gap-2.5 rounded-lg bg-sidebar-accent/40 px-2.5 py-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/20 text-xs font-semibold text-sidebar-primary">
-              {initials(profile.fullName)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium leading-tight text-sidebar-foreground">{profile.fullName}</p>
-              <p className="truncate text-[11px] leading-tight text-sidebar-foreground/50">
-                {ROLE_LABELS[role][i18n.language === 'es' ? 'es' : 'en']}
-              </p>
-            </div>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex w-full items-center gap-2.5 rounded-lg bg-sidebar-accent/40 px-2.5 py-2 text-left outline-none transition-colors hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-sidebar-primary/50">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/20 text-xs font-semibold text-sidebar-primary">
+                  {initials(profile.fullName)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium leading-tight text-sidebar-foreground">{profile.fullName}</p>
+                  <p className="truncate text-[11px] leading-tight text-sidebar-foreground/50">
+                    {ROLE_LABELS[role][i18n.language === 'es' ? 'es' : 'en']}
+                  </p>
+                </div>
+                <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/40" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="start" className="w-56">
+              <DropdownMenuItem asChild>
+                <Link to="/settings" onClick={onNavigate}>
+                  <UserIcon className="h-4 w-4" /> {t('common.profile')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  onNavigate?.()
+                  signOut()
+                }}
+              >
+                <LogOut className="h-4 w-4" /> {t('common.signOut')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </div>

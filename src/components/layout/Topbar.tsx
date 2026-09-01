@@ -6,8 +6,9 @@ import { SidebarNav } from '@/components/layout/Sidebar'
 import { NotificationBell } from '@/components/shared/NotificationBell'
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher'
 import { ThemeToggle } from '@/components/shared/ThemeToggle'
-import { UserMenu } from '@/components/layout/UserMenu'
 
+// Profile/sign-out lives in the sidebar's own footer (SidebarNav) now —
+// no separate avatar/dropdown duplicated up here.
 export function Topbar({ title }: { title: string }) {
   const [open, setOpen] = useState(false)
 
@@ -30,10 +31,6 @@ export function Topbar({ title }: { title: string }) {
         <NotificationBell />
         <LanguageSwitcher />
         <ThemeToggle />
-        <div className="ml-1.5 h-6 w-px bg-border" />
-        <div className="ml-1.5">
-          <UserMenu />
-        </div>
       </div>
     </header>
   )
