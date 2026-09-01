@@ -278,6 +278,21 @@
     "waitComplete": "Período de espera completo — ahora se puede reportar como Devolución Pendiente.",
     "confirmPendingReturn": "Marcar como Devolución Pendiente"
   },
+  "addressIssue": {
+    "reportIssue": "Dirección Incorrecta / No Encontrada",
+    "reportHint": "Esto envía el problema a Despacho. No puedes cambiar la dirección de entrega tú mismo — Despacho contactará al cliente, verificará la ubicación correcta y la actualizará si es necesario.",
+    "flagged": "Problema de dirección reportado",
+    "alreadyFlagged": "Ya reportado a Despacho el {{date}}. Enviar de nuevo actualiza tu nota.",
+    "notesPlaceholder": "¿Qué tiene de incorrecto esta dirección?",
+    "sendToDispatch": "Enviar a Despacho",
+    "updateAddress": "Actualizar Dirección",
+    "flaggedBy": "El conductor reportó un problema de dirección el {{date}}",
+    "originalAddress": "Dirección original",
+    "newAddress": "Nueva dirección",
+    "reasonForChange": "Motivo del cambio",
+    "reasonPlaceholder": "ej. El cliente confirmó el número de unidad correcto",
+    "history": "Historial de Dirección"
+  },
   "status": {
     "draft": "Borrador",
     "scheduled": "Programada",

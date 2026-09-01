@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { mapRoute, mapAssignmentEvent, mapStop } from '@/lib/mappers'
+import { mapRoute, mapAssignmentEvent, mapStop, mapAddressHistoryEvent } from '@/lib/mappers'
 import type { ReassignmentReason, ReturnReason, RouteStatus } from '@/types/domain'
 
 // Explicit column list (never `*`) so this never touches route_stops's
@@ -11,7 +11,8 @@ export const STOP_COLUMNS =
   'id, route_id, sequence, customer_id, customer_name, customer_phone, address, priority, status, package_count, ' +
   'is_controlled_substance, requires_signature, scheduled_window_start, scheduled_window_end, ' +
   'delivered_at, signed_by, notes, failure_reason, delivery_method, delivery_photo_data, ' +
-  'delivery_leave_location, delivery_signature_data, recipient_name, return_wait_started_at'
+  'delivery_leave_location, delivery_signature_data, recipient_name, return_wait_started_at, ' +
+  'address_issue_flagged_at, address_issue_notes'
 
 const ROUTE_SELECT = `*, drivers(id, profiles(full_name)), route_stops(${STOP_COLUMNS})`
 
@@ -28,10 +29,14 @@ export function useRoutes(date?: string) {
   })
 }
 
-export function useRoute(id: string | undefined) {
+// `refetchInterval` is used by the driver's active DeliveryFlow screen so a
+// dispatch-corrected address (or any other change) shows up automatically
+// without the driver having to back out and reopen the stop.
+export function useRoute(id: string | undefined, options?: { refetchInterval?: number }) {
   return useQuery({
     queryKey: ['route', id],
     enabled: !!id,
+    refetchInterval: options?.refetchInterval,
     queryFn: async () => {
       const { data, error } = await supabase.from('routes').select(ROUTE_SELECT).eq('id', id).single()
       if (error) throw error
@@ -192,6 +197,80 @@ export function useReportDeliveryFailure() {
       qc.invalidateQueries({ queryKey: ['routes'] })
       qc.invalidateQueries({ queryKey: ['returns'] })
       qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
+
+// Driver flags "Incorrect Address / Address Not Found" for a stop. Drivers
+// can never change the address itself — this only raises the issue to
+// dispatch (report_address_issue() is the only writer of these two columns;
+// direct client writes are blocked by a column-level revoke).
+export function useReportAddressIssue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ stopId, notes }: { stopId: string; notes?: string }) => {
+      const { data, error } = await supabase.rpc('report_address_issue', {
+        p_stop_id: stopId,
+        p_notes: notes || null,
+      })
+      if (error) throw error
+      return mapStop(data)
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['routes'] })
+      qc.invalidateQueries({ queryKey: ['route', data.routeId] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
+
+// The only path that ever changes a stop's delivery address — restricted to
+// dispatch and above. Never touches packages or creates a new stop/route;
+// the original address is preserved in stop_address_history.
+export function useUpdateStopAddress() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      stopId,
+      newAddress,
+      reason,
+      notes,
+    }: {
+      stopId: string
+      newAddress: string
+      reason?: string
+      notes?: string
+    }) => {
+      const { data, error } = await supabase.rpc('update_stop_address', {
+        p_stop_id: stopId,
+        p_new_address: newAddress,
+        p_reason: reason || null,
+        p_notes: notes || null,
+      })
+      if (error) throw error
+      return mapStop(data)
+    },
+    onSuccess: (data, variables) => {
+      qc.invalidateQueries({ queryKey: ['routes'] })
+      qc.invalidateQueries({ queryKey: ['route', data.routeId] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['stop_address_history', variables.stopId] })
+    },
+  })
+}
+
+export function useStopAddressHistory(stopId: string | undefined) {
+  return useQuery({
+    queryKey: ['stop_address_history', stopId],
+    enabled: !!stopId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stop_address_history')
+        .select('*')
+        .eq('stop_id', stopId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data.map(mapAddressHistoryEvent)
     },
   })
 }

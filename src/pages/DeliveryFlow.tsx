@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowLeft, CheckCircle2, KeyRound, Loader2, MapPin, PackageCheck, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, KeyRound, Loader2, MapPin, MapPinOff, PackageCheck, ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { PriorityBadge } from '@/components/shared/StatusBadge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -22,6 +22,7 @@ import { PackageScanInput } from '@/components/delivery/PackageScanInput'
 import { PhotoCapture } from '@/components/delivery/PhotoCapture'
 import { SignaturePad } from '@/components/delivery/SignaturePad'
 import { PinInput } from '@/components/delivery/PinInput'
+import { AddressIssueDialog } from '@/components/routes/RouteDetailSheet'
 
 export default function DeliveryFlow() {
   const { t } = useTranslation()
@@ -29,7 +30,10 @@ export default function DeliveryFlow() {
   const navigate = useNavigate()
   const { isDriver } = usePermissions()
 
-  const { data: route, isLoading: routeLoading } = useRoute(routeId)
+  // Polls while the driver is actively working a delivery so a
+  // dispatch-corrected address (or anything else) shows up automatically —
+  // no need to back out and reopen the stop.
+  const { data: route, isLoading: routeLoading } = useRoute(routeId, { refetchInterval: 15_000 })
   const { data: packages = [] } = usePackages(routeId)
   const { data: orgSettings } = useOrgSettings()
   const scanPackage = useScanPackage()
@@ -41,6 +45,7 @@ export default function DeliveryFlow() {
   const [leaveLocation, setLeaveLocation] = useState('')
   const [pin, setPin] = useState('')
   const [pinError, setPinError] = useState(false)
+  const [addressIssueOpen, setAddressIssueOpen] = useState(false)
 
   const stop = route?.stops.find((s) => s.id === stopId)
   const stopPackages = useMemo(() => packages.filter((p) => p.stopId === stopId), [packages, stopId])
@@ -162,13 +167,25 @@ export default function DeliveryFlow() {
             </div>
             <PriorityBadge priority={stop.priority} />
           </div>
-          {stop.isControlledSubstance && (
-            <Badge variant="warning" className="w-fit gap-1">
-              <ShieldAlert className="h-3 w-3" /> {t('routes.controlled')}
-            </Badge>
-          )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {stop.isControlledSubstance && (
+              <Badge variant="warning" className="w-fit gap-1">
+                <ShieldAlert className="h-3 w-3" /> {t('routes.controlled')}
+              </Badge>
+            )}
+            {stop.addressIssueFlaggedAt && (
+              <Badge variant="warning" className="w-fit gap-1">
+                <MapPinOff className="h-3 w-3" /> {t('addressIssue.flagged')}
+              </Badge>
+            )}
+          </div>
+          <Button size="sm" variant="ghost" className="w-fit" onClick={() => setAddressIssueOpen(true)}>
+            <MapPinOff className="h-3.5 w-3.5" /> {t('addressIssue.reportIssue')}
+          </Button>
         </CardContent>
       </Card>
+
+      <AddressIssueDialog stop={addressIssueOpen ? stop : null} onClose={() => setAddressIssueOpen(false)} />
 
       {/* Step 1: scan every package */}
       <div className="mb-4 flex flex-col gap-3">

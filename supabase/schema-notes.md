@@ -33,6 +33,11 @@ a clearer label) and gained a new `returned` value in between it and
   `print_count` track printing; reprinting only ever updates these fields
   on the existing row (see `increment_package_print()` below) — it never
   inserts a new package.
+- **stop_address_history** — append-only audit trail of every delivery
+  address correction on a stop (previous/new address, who changed it, when,
+  and why). The only writer is `update_stop_address()` (below) — no
+  insert/update/delete RLS policies, so the client can never touch it
+  directly. Mirrors `route_assignment_history`'s shape/intent.
 - **route_assignment_history** — append-only audit trail of every
   driver_id change on a route (previous/new driver, who made the change,
   when, the route's status at that moment, and a reason). The only writer
@@ -62,8 +67,9 @@ a clearer label) and gained a new `returned` value in between it and
 proof: `delivery_method`, `delivery_pin` (see below), `recipient_name`,
 `delivery_signature_data`, `delivery_photo_data`, `delivery_leave_location`,
 `customer_phone` (denormalized for the "call/message customer" failed-
-delivery affordance), `return_wait_started_at` (see below). `packages`
-carries `scanned_at`.
+delivery affordance), `return_wait_started_at` (see below), and
+`address_issue_flagged_at`/`address_issue_notes` (see "Incorrect-address
+handling" below). `packages` carries `scanned_at`.
 
 ## Row-Level Security
 
@@ -104,6 +110,13 @@ Policy shape, per table:
   and only while the row's status is `available` or `partial`; touching or
   setting `unavailable`/`time_off` directly is blocked by RLS — that status
   only ever gets set by `review_time_off_request()` approving a request.
+- `route_stops.address`, `.address_issue_flagged_at`, and
+  `.address_issue_notes` have **no UPDATE grant for `authenticated` or
+  `anon`** — a driver's own client can never change a delivery address, or
+  even the issue-flag columns, directly; only `report_address_issue()` and
+  `update_stop_address()` (both `security definer`) can touch them.
+- `stop_address_history` — a driver sees their own route's history; back
+  office sees all. Same visibility split as `route_assignment_history`.
 - `route_stops.delivery_pin` has **no SELECT grant for `authenticated` or
   `anon`** (`revoke select (delivery_pin) on route_stops from authenticated,
   anon`) — real column-level security, not just an app convention. Every
@@ -201,6 +214,27 @@ route or duplicate package is ever created.
   stop out to `returned` too. Only from `returned` can the existing
   `returns_update_ops`-gated client update move a return on to
   `restocked`/`disposed`/`redelivery_scheduled`.
+
+## Incorrect-address handling
+
+- `report_address_issue(p_stop_id, p_notes)` — restricted to the stop's
+  assigned driver. The only writer of `address_issue_flagged_at`/
+  `address_issue_notes`. Safe to call again (e.g. to update the note); it
+  never creates a duplicate anything. Notifies dispatch/general_manager/
+  owner (`address_issue_reported`).
+- `update_stop_address(p_stop_id, p_new_address, p_reason, p_notes)` — the
+  *only* path that ever changes `route_stops.address`. Restricted to
+  `is_ops()` (dispatch and above). Refuses an empty address or a no-op
+  update. In one transaction it: inserts one row into
+  `stop_address_history` (the original address, the new one, who, when, and
+  the required reason), updates the stop's `address`, clears the driver's
+  issue flag, and notifies the assigned driver (`address_updated`). It never
+  touches `packages` or creates a new stop/route — scanned packages and
+  progress carry over untouched, exactly like `reassign_route_driver()`.
+- The driver's app polls its active route every 15s while a delivery is in
+  progress (`useRoute(id, { refetchInterval })` in `DeliveryFlow.tsx`) so a
+  corrected address — and its "Navigate" link — shows up automatically
+  without the driver needing to back out and reopen the stop.
 
 ## Demo accounts
 

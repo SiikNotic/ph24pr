@@ -278,6 +278,21 @@
     "waitComplete": "Waiting period complete — this can now be reported as Pending Return.",
     "confirmPendingReturn": "Mark as Pending Return"
   },
+  "addressIssue": {
+    "reportIssue": "Incorrect Address / Address Not Found",
+    "reportHint": "This sends the issue to Dispatch. You can't change the delivery address yourself — Dispatch will contact the customer, verify the correct location, and update it if needed.",
+    "flagged": "Address issue reported",
+    "alreadyFlagged": "Already reported to Dispatch on {{date}}. Sending again updates your note.",
+    "notesPlaceholder": "What's wrong with this address?",
+    "sendToDispatch": "Send to Dispatch",
+    "updateAddress": "Update Address",
+    "flaggedBy": "Driver reported an address issue on {{date}}",
+    "originalAddress": "Original address",
+    "newAddress": "New address",
+    "reasonForChange": "Reason for change",
+    "reasonPlaceholder": "e.g. Customer confirmed correct unit number",
+    "history": "Address History"
+  },
   "status": {
     "draft": "Draft",
     "scheduled": "Scheduled",

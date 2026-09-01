@@ -15,6 +15,8 @@ import {
   Phone,
   MessageSquare,
   Timer,
+  MapPinOff,
+  MapPinCheck,
 } from 'lucide-react'
 import {
   Sheet,
@@ -27,18 +29,26 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { StatusBadge, PriorityBadge } from '@/components/shared/StatusBadge'
 import { usePermissions } from '@/hooks/usePermissions'
-import { useUpdateRouteStatus, useStartReturnWait, useReportDeliveryFailure } from '@/hooks/useRoutes'
+import {
+  useUpdateRouteStatus,
+  useStartReturnWait,
+  useReportDeliveryFailure,
+  useReportAddressIssue,
+  useUpdateStopAddress,
+} from '@/hooks/useRoutes'
 import { useDeliveryPin } from '@/hooks/useDelivery'
 import { useOrgSettings } from '@/hooks/useSettings'
 import { ReassignDriverDialog } from '@/components/routes/ReassignDriverDialog'
 import { AssignmentHistoryList } from '@/components/routes/AssignmentHistoryList'
+import { AddressHistoryList } from '@/components/routes/AddressHistoryList'
 import { RETURN_REASONS } from '@/lib/returnReasons'
 import type { DeliveryRoute, ReturnReason, RouteStop } from '@/types/domain'
-import { formatDate } from '@/lib/format'
+import { formatDate, formatDateTime } from '@/lib/format'
 
 export function RouteDetailSheet({
   route,
@@ -53,6 +63,8 @@ export function RouteDetailSheet({
   const { can, isDriver } = usePermissions()
   const updateRouteStatus = useUpdateRouteStatus()
   const [issueStop, setIssueStop] = useState<RouteStop | null>(null)
+  const [addressIssueStop, setAddressIssueStop] = useState<RouteStop | null>(null)
+  const [editAddressStop, setEditAddressStop] = useState<RouteStop | null>(null)
 
   if (!route) return null
 
@@ -144,6 +156,11 @@ export function RouteDetailSheet({
                       <Timer className="h-3 w-3" /> {t('failedDelivery.waiting')}
                     </Badge>
                   )}
+                  {stop.addressIssueFlaggedAt && (
+                    <Badge variant="warning" className="gap-1">
+                      <MapPinOff className="h-3 w-3" /> {t('addressIssue.flagged')}
+                    </Badge>
+                  )}
                 </div>
 
                 {stop.status === 'delivered' && stop.signedBy && (
@@ -176,8 +193,20 @@ export function RouteDetailSheet({
                     <Button size="sm" variant="destructive" onClick={() => setIssueStop(stop)}>
                       <ShieldAlert className="h-3.5 w-3.5" /> {t('routes.markFailed')}
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => setAddressIssueStop(stop)}>
+                      <MapPinOff className="h-3.5 w-3.5" /> {t('addressIssue.reportIssue')}
+                    </Button>
                   </div>
                 )}
+
+                {canManage && (stop.status === 'pending' || stop.status === 'en_route') && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setEditAddressStop(stop)}>
+                      <MapPinCheck className="h-3.5 w-3.5" /> {t('addressIssue.updateAddress')}
+                    </Button>
+                  </div>
+                )}
+                {canManage && <AddressHistoryList stopId={stop.id} />}
               </div>
             ))}
           </div>
@@ -185,6 +214,8 @@ export function RouteDetailSheet({
       </Sheet>
 
       <FailedDeliveryDialog stop={issueStop} onClose={() => setIssueStop(null)} />
+      <AddressIssueDialog stop={addressIssueStop} onClose={() => setAddressIssueStop(null)} />
+      <UpdateAddressDialog stop={editAddressStop} onClose={() => setEditAddressStop(null)} />
     </>
   )
 }
@@ -390,6 +421,146 @@ function FailedDeliveryDialog({
           <Button variant="destructive" onClick={confirm} disabled={!canConfirm || reportFailure.isPending}>
             {reportFailure.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             {reason === 'no_response' ? t('failedDelivery.confirmPendingReturn') : t('common.confirm')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Driver-side: raises "Incorrect Address / Address Not Found" to dispatch.
+// Drivers can never change the address themselves -- this only flags it;
+// report_address_issue() is the only writer of the flag/notes columns.
+export function AddressIssueDialog({ stop, onClose }: { stop: RouteStop | null; onClose: () => void }) {
+  const { t, i18n } = useTranslation()
+  const [notes, setNotes] = useState('')
+  const reportIssue = useReportAddressIssue()
+
+  useEffect(() => {
+    setNotes(stop?.addressIssueNotes ?? '')
+  }, [stop?.id])
+
+  async function confirm() {
+    if (!stop) return
+    try {
+      await reportIssue.mutateAsync({ stopId: stop.id, notes: notes.trim() || undefined })
+      toast.success(t('common.success'))
+      onClose()
+    } catch (e: any) {
+      toast.error(e.message ?? t('common.error'))
+    }
+  }
+
+  return (
+    <Dialog open={!!stop} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('addressIssue.reportIssue')}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">{t('addressIssue.reportHint')}</p>
+          {stop && (
+            <div className="rounded-lg border border-border p-3 text-sm">
+              <p className="font-medium">{stop.customerName}</p>
+              <p className="text-muted-foreground">{stop.address}</p>
+            </div>
+          )}
+          {stop?.addressIssueFlaggedAt && (
+            <p className="text-xs text-muted-foreground">
+              {t('addressIssue.alreadyFlagged', { date: formatDateTime(stop.addressIssueFlaggedAt, i18n.language) })}
+            </p>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <Label>{t('common.notes')}</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t('addressIssue.notesPlaceholder')}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button onClick={confirm} disabled={reportIssue.isPending}>
+            {reportIssue.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {t('addressIssue.sendToDispatch')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Dispatch-side: the only path that ever changes a stop's delivery address.
+// Never touches packages or creates a new stop/route; the original address
+// stays on record in stop_address_history (see AddressHistoryList).
+function UpdateAddressDialog({ stop, onClose }: { stop: RouteStop | null; onClose: () => void }) {
+  const { t, i18n } = useTranslation()
+  const [newAddress, setNewAddress] = useState('')
+  const [reason, setReason] = useState('')
+  const [notes, setNotes] = useState('')
+  const updateAddress = useUpdateStopAddress()
+
+  useEffect(() => {
+    setNewAddress(stop?.address ?? '')
+    setReason('')
+    setNotes('')
+  }, [stop?.id])
+
+  const canSave = newAddress.trim().length > 0 && newAddress.trim() !== stop?.address && reason.trim().length > 0
+
+  async function confirm() {
+    if (!stop) return
+    try {
+      await updateAddress.mutateAsync({ stopId: stop.id, newAddress: newAddress.trim(), reason: reason.trim(), notes: notes.trim() || undefined })
+      toast.success(t('common.success'))
+      onClose()
+    } catch (e: any) {
+      toast.error(e.message ?? t('common.error'))
+    }
+  }
+
+  return (
+    <Dialog open={!!stop} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('addressIssue.updateAddress')}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          {stop?.addressIssueFlaggedAt && (
+            <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+              <p className="flex items-center gap-1.5 font-medium">
+                <MapPinOff className="h-3.5 w-3.5" /> {t('addressIssue.flaggedBy', { date: formatDateTime(stop.addressIssueFlaggedAt, i18n.language) })}
+              </p>
+              {stop.addressIssueNotes && <p className="mt-1 text-muted-foreground">{stop.addressIssueNotes}</p>}
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <Label>{t('addressIssue.originalAddress')}</Label>
+            <p className="rounded-md border border-border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">{stop?.address}</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>{t('addressIssue.newAddress')}</Label>
+            <Textarea value={newAddress} onChange={(e) => setNewAddress(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>{t('addressIssue.reasonForChange')}</Label>
+            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('addressIssue.reasonPlaceholder')} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>{t('common.notes')}</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button onClick={confirm} disabled={!canSave || updateAddress.isPending}>
+            {updateAddress.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {t('common.saveChanges')}
           </Button>
         </DialogFooter>
       </DialogContent>

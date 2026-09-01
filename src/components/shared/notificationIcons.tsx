@@ -1,4 +1,4 @@
-import { Truck, CheckCircle2, XCircle, RotateCcw, CalendarClock, Info, AlertTriangle } from 'lucide-react'
+import { Truck, CheckCircle2, XCircle, RotateCcw, CalendarClock, Info, AlertTriangle, MapPinOff, MapPinCheck } from 'lucide-react'
 import type { NotificationType } from '@/types/domain'
 
 export const NOTIFICATION_ICON: Record<NotificationType, typeof Truck> = {
@@ -6,6 +6,8 @@ export const NOTIFICATION_ICON: Record<NotificationType, typeof Truck> = {
   delivery_completed: CheckCircle2,
   delivery_failed: XCircle,
   return_created: RotateCcw,
+  address_issue_reported: MapPinOff,
+  address_updated: MapPinCheck,
   availability_change: CalendarClock,
   system: Info,
   urgent: AlertTriangle,

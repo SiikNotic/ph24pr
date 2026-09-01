@@ -107,6 +107,22 @@ Returned item can go on to be resolved as restocked, disposed, or scheduled
 for redelivery — you can't restock something the driver hasn't handed back
 yet.
 
+## Incorrect-address handling
+
+A driver who can't find or verify a delivery address selects "Incorrect
+Address / Address Not Found" — that's the only thing they can do about it.
+Drivers can never officially change a delivery address themselves; it just
+raises the issue to Dispatch (a badge shows on the stop either way, so
+everyone can see it's been flagged). From there, Dispatch (or anyone above)
+contacts the customer, verifies the correct location, and — when
+authorized — updates the delivery point right on the stop, with a required
+reason for the change. The moment that happens, the driver's route and
+navigation link update automatically (their app polls while a delivery is
+in progress, so no manual refresh is needed) — no new order or package is
+ever created, and nothing about the stop's progress is reset. The original
+address is never lost: every change (previous address, new address, who
+made it, when, and why) is kept in that stop's Address History.
+
 ## Getting started
 
 ```bash

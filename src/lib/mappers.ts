@@ -7,6 +7,7 @@ import type {
   Package,
   RouteAssignmentEvent,
   ReturnItem,
+  StopAddressHistoryEvent,
   AvailabilityEntry,
   AppNotification,
   HelpArticle,
@@ -83,6 +84,8 @@ export function mapStop(row: any): RouteStop {
     deliveryLeaveLocation: row.delivery_leave_location ?? undefined,
     deliverySignatureData: row.delivery_signature_data ?? undefined,
     returnWaitStartedAt: row.return_wait_started_at ?? undefined,
+    addressIssueFlaggedAt: row.address_issue_flagged_at ?? undefined,
+    addressIssueNotes: row.address_issue_notes ?? undefined,
   }
 }
 
@@ -132,6 +135,21 @@ export function mapAssignmentEvent(row: any): RouteAssignmentEvent {
     changedByName: row.changed_by_name ?? undefined,
     routeStatus: row.route_status,
     reason: row.reason,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+  }
+}
+
+export function mapAddressHistoryEvent(row: any): StopAddressHistoryEvent {
+  return {
+    id: row.id,
+    stopId: row.stop_id,
+    routeId: row.route_id,
+    previousAddress: row.previous_address,
+    newAddress: row.new_address,
+    changedBy: row.changed_by ?? undefined,
+    changedByName: row.changed_by_name ?? undefined,
+    reason: row.reason ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: row.created_at,
   }

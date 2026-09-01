@@ -101,6 +101,27 @@ export interface RouteStop {
   // stop; cleared once the failure is reported. Never exposed as a way to
   // skip the wait -- report_delivery_failure() re-checks it server-side.
   returnWaitStartedAt?: string
+  // Set when the driver reports "Incorrect Address / Address Not Found";
+  // cleared the moment dispatch corrects the address. Drivers can never set
+  // `address` itself -- only report_address_issue() can touch these two
+  // fields, and only update_stop_address() can touch `address`.
+  addressIssueFlaggedAt?: string
+  addressIssueNotes?: string
+}
+
+// Append-only audit trail of every address correction on a stop -- the
+// original address is never lost. Written only by update_stop_address().
+export interface StopAddressHistoryEvent {
+  id: string
+  stopId: string
+  routeId: string
+  previousAddress: string
+  newAddress: string
+  changedBy?: string
+  changedByName?: string
+  reason?: string
+  notes?: string
+  createdAt: string
 }
 
 export interface Package {
@@ -231,6 +252,8 @@ export type NotificationType =
   | 'delivery_completed'
   | 'delivery_failed'
   | 'return_created'
+  | 'address_issue_reported'
+  | 'address_updated'
   | 'availability_change'
   | 'system'
   | 'urgent'
