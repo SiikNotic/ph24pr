@@ -7,6 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="MedRoute — pharmacy and medical delivery management system." />
     <title>MedRoute — Pharmacy Delivery Management</title>
+    <script>
+      // Pairs with public/404.html: restores a deep link GitHub Pages
+      // couldn't resolve server-side before React Router ever mounts.
+      ;(function () {
+        var params = new URLSearchParams(location.search)
+        var redirect = params.get('redirect')
+        if (redirect) history.replaceState(null, '', redirect)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Camera, CheckCircle2, Keyboard, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { decodeQrFromFile } from '@/lib/imageUtils'
+import { cn } from '@/lib/utils'
 import type { Package } from '@/types/domain'
 
 // Scans one package: capture a photo of its QR label (decoded entirely on
@@ -54,19 +56,34 @@ export function PackageScanInput({
   const busy = isScanning || decoding
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+    <div
+      className={cn(
+        'flex flex-col gap-2 rounded-lg border p-3 transition-colors duration-500',
+        pkg.scannedAt ? 'border-success/30 bg-success/[0.04]' : 'border-border',
+      )}
+    >
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="font-mono text-sm font-semibold">{pkg.code}</p>
+          <p className="font-numeric text-sm font-semibold">{pkg.code}</p>
           <p className="text-xs text-muted-foreground">{t('delivery.packageOf', { n: pkg.sequence })}</p>
         </div>
-        {pkg.scannedAt ? (
-          <span className="flex items-center gap-1 text-sm font-medium text-success">
-            <CheckCircle2 className="h-4 w-4" /> {t('delivery.scanned')}
-          </span>
-        ) : (
-          <span className="text-sm text-muted-foreground">{t('delivery.notScanned')}</span>
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          {pkg.scannedAt ? (
+            <motion.span
+              key="scanned"
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+              className="flex items-center gap-1 text-sm font-medium text-success"
+            >
+              <CheckCircle2 className="h-4 w-4" /> {t('delivery.scanned')}
+            </motion.span>
+          ) : (
+            <motion.span key="pending" exit={{ opacity: 0 }} className="text-sm text-muted-foreground">
+              {t('delivery.notScanned')}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
       {!pkg.scannedAt && (

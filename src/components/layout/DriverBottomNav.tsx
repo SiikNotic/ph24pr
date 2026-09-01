@@ -8,27 +8,29 @@ export function DriverBottomNav() {
   const items = NAV_ITEMS.filter((item) => DRIVER_BOTTOM_NAV.includes(item.section))
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-border bg-background/95 backdrop-blur safe-bottom lg:hidden">
-      {items.map((item) => (
-        <NavLink
-          key={item.section}
-          to={item.path}
-          end={item.path === '/'}
-          className={({ isActive }) =>
-            cn(
-              'flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors',
-              isActive ? 'text-primary' : 'text-muted-foreground',
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              <item.icon className={cn('h-5 w-5', isActive && 'stroke-[2.5]')} />
-              {t(item.labelKey)}
-            </>
-          )}
-        </NavLink>
-      ))}
+    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/90 backdrop-blur-md lg:hidden">
+      <div className="flex h-[68px] items-stretch px-1.5 pt-1.5">
+        {items.map((item) => (
+          <NavLink
+            key={item.section}
+            to={item.path}
+            end={item.path === '/'}
+            className="flex flex-1 items-center justify-center"
+          >
+            {({ isActive }) => (
+              <span
+                className={cn(
+                  'flex flex-col items-center gap-1 rounded-xl px-3.5 py-1.5 text-[10.5px] font-semibold tracking-tight transition-colors',
+                  isActive ? 'bg-primary/12 text-primary' : 'text-muted-foreground',
+                )}
+              >
+                <item.icon className="h-5 w-5" strokeWidth={isActive ? 2.4 : 2} />
+                {t(item.labelKey)}
+              </span>
+            )}
+          </NavLink>
+        ))}
+      </div>
     </nav>
   )
 }

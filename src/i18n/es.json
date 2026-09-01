@@ -13,7 +13,13 @@
     "notifications": "Notificaciones",
     "reports": "Reportes",
     "settings": "Configuración",
-    "help": "Ayuda / Wiki"
+    "help": "Ayuda / Wiki",
+    "group": {
+      "overview": "Resumen",
+      "operations": "Operaciones",
+      "insights": "Información",
+      "system": "Sistema"
+    }
   },
   "common": {
     "search": "Buscar",
@@ -111,6 +117,8 @@
       "controlledSubstances": "Rx Controlados Hoy"
     },
     "routeProgress": "Progreso de Rutas",
+    "needsAttention": "Requiere Atención",
+    "allClear": "Todo en orden — nada requiere atención por ahora.",
     "recentActivity": "Actividad Reciente",
     "upcomingRoutes": "Próximas Rutas",
     "myRouteToday": "Mi Ruta de Hoy",
@@ -130,6 +138,7 @@
     "driver": "Conductor",
     "stops": "paradas",
     "stop": "parada",
+    "stopProgression": "Progresión de paradas",
     "board": "Tablero",
     "list": "Lista",
     "map": "Mapa",

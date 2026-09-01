@@ -167,6 +167,25 @@ The database schema, RLS policies, and demo data already live in the
 Supabase project referenced by `.env`. See `supabase/schema-notes.md` for an
 overview of the schema if you need to re-create it elsewhere.
 
+## Deploying to GitHub Pages
+
+`.github/workflows/deploy.yml` builds and publishes the app to GitHub Pages
+automatically on every push to `claude/pharmacy-delivery-system-t6azkq`. One-time setup:
+
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
+2. **Settings → Secrets and variables → Actions**, add two repository
+   secrets: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the same
+   values as your local `.env` — Supabase's anon key is safe to ship in a
+   public bundle, it's the RLS policies that actually enforce access).
+
+The app is a client-only SPA (all Supabase calls happen in the browser), so
+static hosting is enough — no server/edge function needed. It deploys as a
+project page at `https://<owner>.github.io/ph24pr/`; the build bakes that
+subpath into every asset URL and route (`vite.config.ts`'s `base`,
+`BrowserRouter`'s `basename`), and `public/404.html` restores deep links
+(e.g. a shared link straight to a route) that GitHub Pages' static hosting
+can't rewrite server-side on its own.
+
 ## Demo accounts
 
 The login screen's "Demo access" panel signs in instantly as any role.

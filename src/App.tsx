@@ -37,7 +37,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={200}>
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
           <Routes>
             <Route path="/login" element={<Login />} />
 

@@ -1,1 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..800;1,14..32,400..700&display=swap');
+/* Space Grotesk — display/headings: geometric, technical, distinctive.
+   Manrope — body/UI: clean modern grotesk, deliberately not Inter.
+   JetBrains Mono — data/numeric: tabular figures for operational metrics. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');

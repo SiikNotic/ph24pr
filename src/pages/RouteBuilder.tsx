@@ -109,27 +109,37 @@ export default function RouteBuilder() {
       />
 
       {/* Stepper */}
-      <div className="mb-6 flex items-center gap-2">
-        {STEPS.map((s, i) => (
-          <div key={s} className="flex flex-1 items-center gap-2">
-            <button
-              onClick={() => (i <= stepIndex || !isDraft) && setStep(s)}
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-colors ${
-                i < stepIndex || (!isDraft && s !== 'confirm')
-                  ? 'bg-success text-success-foreground'
-                  : i === stepIndex
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {i < stepIndex || (!isDraft && s !== 'confirm') ? <Check className="h-4 w-4" /> : i + 1}
-            </button>
-            <span className={`hidden text-sm font-medium sm:block ${i === stepIndex ? '' : 'text-muted-foreground'}`}>
-              {t(`routeBuilder.step${i + 1}`)}
-            </span>
-            {i < STEPS.length - 1 && <div className="h-px flex-1 bg-border" />}
-          </div>
-        ))}
+      <div className="mb-8 flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-3.5">
+        {STEPS.map((s, i) => {
+          const done = i < stepIndex || (!isDraft && s !== 'confirm')
+          const isCurrent = i === stepIndex
+          return (
+            <div key={s} className="flex flex-1 items-center gap-2.5">
+              <button
+                onClick={() => (i <= stepIndex || !isDraft) && setStep(s)}
+                className={`font-numeric flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all duration-300 ${
+                  done
+                    ? 'bg-success text-success-foreground'
+                    : isCurrent
+                      ? 'bg-primary text-primary-foreground ring-4 ring-primary/15'
+                      : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {done ? <Check className="h-4 w-4" /> : i + 1}
+              </button>
+              <span
+                className={`font-display hidden text-sm font-semibold tracking-tight sm:block ${isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}
+              >
+                {t(`routeBuilder.step${i + 1}`)}
+              </span>
+              {i < STEPS.length - 1 && (
+                <div className="h-px flex-1 bg-border">
+                  <div className={`h-full bg-success transition-all duration-500 ${done ? 'w-full' : 'w-0'}`} />
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {step === 'deliveries' && (
@@ -214,28 +224,28 @@ export default function RouteBuilder() {
       {step === 'confirm' && (
         <div className="flex flex-col gap-4">
           <Card>
-            <CardContent className="flex flex-col gap-3 p-5">
-              <p className="font-semibold">{t('routeBuilder.summary')}</p>
-              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+            <CardContent className="flex flex-col gap-4 p-5">
+              <p className="font-display text-[15px] font-semibold">{t('routeBuilder.summary')}</p>
+              <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
                 <div>
-                  <p className="text-muted-foreground">{t('routes.routeName')}</p>
-                  <p className="font-medium">{route.name}</p>
+                  <p className="text-xs text-muted-foreground">{t('routes.routeName')}</p>
+                  <p className="mt-0.5 font-medium">{route.name}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">{t('common.date')}</p>
-                  <p className="font-medium">{formatDate(route.date, i18n.language)}</p>
+                  <p className="text-xs text-muted-foreground">{t('common.date')}</p>
+                  <p className="mt-0.5 font-medium">{formatDate(route.date, i18n.language)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">{t('routeBuilder.deliveriesCount')}</p>
-                  <p className="font-medium">{route.stops.length}</p>
+                  <p className="text-xs text-muted-foreground">{t('routeBuilder.deliveriesCount')}</p>
+                  <p className="font-numeric mt-0.5 text-base font-semibold">{route.stops.length}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">{t('routeBuilder.packagesTotal')}</p>
-                  <p className="font-medium">{packages.length}</p>
+                  <p className="text-xs text-muted-foreground">{t('routeBuilder.packagesTotal')}</p>
+                  <p className="font-numeric mt-0.5 text-base font-semibold">{packages.length}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">{t('routeBuilder.labelsPrinted')}</p>
-                  <p className={`font-medium ${allPrinted ? 'text-success' : 'text-warning-foreground'}`}>
+                  <p className="text-xs text-muted-foreground">{t('routeBuilder.labelsPrinted')}</p>
+                  <p className={`font-numeric mt-0.5 text-base font-semibold ${allPrinted ? 'text-success' : 'text-warning-foreground'}`}>
                     {packages.filter((p) => p.labelPrinted).length} / {packages.length}
                   </p>
                 </div>
@@ -244,9 +254,14 @@ export default function RouteBuilder() {
           </Card>
 
           {isDraft ? (
-            <Card>
-              <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
-                <p className="text-sm text-muted-foreground">
+            <Card className={allPrinted ? 'border-success/30 bg-success/[0.03]' : undefined}>
+              <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-full ${allPrinted ? 'bg-success/12 text-success' : 'bg-muted text-muted-foreground'}`}
+                >
+                  <Check className="h-6 w-6" strokeWidth={2.5} />
+                </div>
+                <p className="max-w-sm text-sm text-muted-foreground">
                   {allPrinted ? t('routeBuilder.confirmHint') : t('routeBuilder.needAllLabelsPrinted')}
                 </p>
                 <Button size="lg" onClick={handleConfirm} disabled={!allPrinted || updateRouteStatus.isPending}>
@@ -258,7 +273,7 @@ export default function RouteBuilder() {
           ) : (
             <Card>
               <CardContent className="flex flex-col gap-3 p-5">
-                <p className="font-semibold">{t('routeBuilder.assignDriverTitle')}</p>
+                <p className="font-display text-[15px] font-semibold">{t('routeBuilder.assignDriverTitle')}</p>
                 <p className="text-sm text-muted-foreground">{t('routeBuilder.assignDriverHint')}</p>
                 <Select value={route.driverId ?? ''} onValueChange={handleAssign} disabled={!can('routes', 'assign')}>
                   <SelectTrigger className="max-w-xs">

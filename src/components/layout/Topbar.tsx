@@ -12,7 +12,7 @@ export function Topbar({ title }: { title: string }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 sm:px-6">
       <Sheet open={open} onOpenChange={setOpen}>
         <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setOpen(true)} aria-label="Menu">
           <Menu className="h-5 w-5" />
@@ -22,13 +22,16 @@ export function Topbar({ title }: { title: string }) {
         </SheetContent>
       </Sheet>
 
-      <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground sm:text-lg">{title}</h1>
+      <h1 className="font-display min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight text-foreground sm:text-lg">
+        {title}
+      </h1>
 
       <div className="flex items-center gap-0.5 sm:gap-1">
         <NotificationBell />
         <LanguageSwitcher />
         <ThemeToggle />
-        <div className="ml-1">
+        <div className="ml-1.5 h-6 w-px bg-border" />
+        <div className="ml-1.5">
           <UserMenu />
         </div>
       </div>

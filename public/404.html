@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MedRoute</title>
+    <!--
+      GitHub Pages serves only static files and has no server-side rewrite
+      rule, so a deep link (e.g. /routes/abc/build) 404s on refresh with a
+      client-side router. This is the standard spa-github-pages workaround:
+      encode the requested path into a query string and redirect to the
+      real index.html, which decodes it back via history.replaceState
+      before React Router ever mounts (see the inline script in index.html).
+    -->
+    <script>
+      var path = location.pathname + location.search + location.hash
+      location.replace(location.origin + '/ph24pr/?redirect=' + encodeURIComponent(path))
+    </script>
+  </head>
+  <body></body>
+</html>

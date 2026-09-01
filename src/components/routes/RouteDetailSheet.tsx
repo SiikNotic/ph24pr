@@ -52,6 +52,17 @@ import { AuditLogList } from '@/components/routes/AuditLogList'
 import { RETURN_REASONS } from '@/lib/returnReasons'
 import type { DeliveryRoute, ReturnReason, RouteStop } from '@/types/domain'
 import { formatDate, formatDateTime } from '@/lib/format'
+import { cn } from '@/lib/utils'
+
+const STOP_DOT_TONE: Record<string, string> = {
+  pending: 'border-border bg-muted text-muted-foreground',
+  scanned: 'border-info bg-info/10 text-info',
+  out_for_delivery: 'border-info bg-info/10 text-info',
+  delivered: 'border-success bg-success/10 text-success',
+  failed: 'border-destructive bg-destructive/10 text-destructive',
+  pending_return: 'border-destructive bg-destructive/10 text-destructive',
+  returned: 'border-warning bg-warning/10 text-warning-foreground',
+}
 
 export function RouteDetailSheet({
   route,
@@ -81,20 +92,24 @@ export function RouteDetailSheet({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
           <SheetHeader>
-            <div className="flex items-center gap-2">
-              <SheetTitle>{route.name}</SheetTitle>
+            <div className="flex items-center gap-2.5">
+              <SheetTitle className="font-display text-lg">{route.name}</SheetTitle>
               <StatusBadge status={route.status} />
             </div>
-            <SheetDescription>
+            <SheetDescription className="font-numeric">
               {formatDate(route.date, i18n.language)} · {route.stops.length} {t(route.stops.length === 1 ? 'routes.stop' : 'routes.stops')}
             </SheetDescription>
           </SheetHeader>
 
           {(canManage || canRunRoute) && (
-            <div className="mt-4 flex flex-col gap-2 rounded-lg border border-border p-3">
-              {canManage && <Label className="text-xs text-muted-foreground">{t('routes.driver')}</Label>}
+            <div className="mt-4 flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-3.5">
+              {canManage && (
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t('routes.driver')}
+                </Label>
+              )}
               <div className="flex flex-wrap items-center gap-2">
-                {canManage && <p className="flex-1 text-sm font-medium">{route.driverName ?? t('common.unassigned')}</p>}
+                {canManage && <p className="flex-1 text-sm font-semibold">{route.driverName ?? t('common.unassigned')}</p>}
                 {canReassign && <ReassignDriverDialog route={route} />}
                 {canRunRoute && route.status === 'assigned' && (
                   <Button
@@ -138,18 +153,26 @@ export function RouteDetailSheet({
             </div>
           )}
 
-          <div className="mt-4 flex flex-col gap-3">
+          <p className="mb-2 mt-6 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {t('routes.stopProgression')}
+          </p>
+          <div className="relative flex flex-col gap-4">
+            <span className="absolute bottom-4 left-[17px] top-4 w-px bg-border" aria-hidden />
             {route.stops.map((stop) => (
-              <div key={stop.id} className="rounded-lg border border-border p-3">
+              <div key={stop.id} className="relative flex items-start gap-3">
+                <span
+                  className={cn(
+                    'relative z-10 mt-0.5 flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border-2 font-numeric text-xs font-bold',
+                    STOP_DOT_TONE[stop.status] ?? 'border-border bg-muted text-muted-foreground',
+                  )}
+                >
+                  {stop.sequence}
+                </span>
+                <div className="min-w-0 flex-1 rounded-xl border border-border bg-card p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                      {stop.sequence}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium">{stop.customerName}</p>
-                      <p className="text-xs text-muted-foreground">{stop.address}</p>
-                    </div>
+                  <div>
+                    <p className="text-sm font-semibold">{stop.customerName}</p>
+                    <p className="text-xs text-muted-foreground">{stop.address}</p>
                   </div>
                   <StatusBadge status={stop.status} />
                 </div>
@@ -230,6 +253,7 @@ export function RouteDetailSheet({
                   </div>
                 )}
                 {canManage && <AddressHistoryList stopId={stop.id} />}
+                </div>
               </div>
             ))}
           </div>
