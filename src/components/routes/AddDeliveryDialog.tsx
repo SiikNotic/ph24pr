@@ -32,6 +32,10 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [priority, setPriority] = useState<Priority>('standard')
   const [packageCount, setPackageCount] = useState(1)
+  // The input's own text, separate from packageCount — lets the field sit
+  // empty while the user is backspacing/retyping instead of the "0 || 1"
+  // fallback below snapping it straight back to "1" on every keystroke.
+  const [packageCountText, setPackageCountText] = useState('1')
   const [controlled, setControlled] = useState(false)
   const [signature, setSignature] = useState(false)
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('in_hand')
@@ -44,6 +48,7 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
     setCustomer(null)
     setPriority('standard')
     setPackageCount(1)
+    setPackageCountText('1')
     setControlled(false)
     setSignature(false)
     setDeliveryMethod('in_hand')
@@ -192,8 +197,16 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
                   type="number"
                   min={1}
                   max={50}
-                  value={packageCount}
-                  onChange={(e) => setPackageCount(Math.max(1, Number(e.target.value) || 1))}
+                  value={packageCountText}
+                  onChange={(e) => {
+                    const text = e.target.value
+                    setPackageCountText(text)
+                    const n = Number(text)
+                    if (text.trim() !== '' && Number.isFinite(n) && n >= 1) {
+                      setPackageCount(Math.min(50, Math.floor(n)))
+                    }
+                  }}
+                  onBlur={() => setPackageCountText(String(packageCount))}
                 />
               </div>
             </div>
