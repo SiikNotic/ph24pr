@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useCreateCustomer, useUpdateCustomer } from '@/hooks/useCustomers'
+import { PR_MUNICIPALITIES, isValidPrZip } from '@/lib/puertoRico'
 import type { Customer, CustomerType } from '@/types/domain'
 
 const TYPES: CustomerType[] = ['pharmacy', 'clinic', 'hospital', 'nursing_home', 'patient']
@@ -26,7 +27,7 @@ const EMPTY = {
   type: 'pharmacy' as CustomerType,
   address: '',
   city: '',
-  state: '',
+  state: 'PR',
   zip: '',
   contactName: '',
   contactPhone: '',
@@ -58,7 +59,7 @@ export function CustomerFormDialog({
         type: customer.type,
         address: customer.address,
         city: customer.city,
-        state: customer.state,
+        state: customer.state || 'PR',
         zip: customer.zip,
         contactName: customer.contactName ?? '',
         contactPhone: customer.contactPhone ?? '',
@@ -74,8 +75,12 @@ export function CustomerFormDialog({
   }, [open, customer])
 
   async function handleSubmit() {
-    if (!form.name.trim() || !form.address.trim()) {
+    if (!form.name.trim() || !form.address.trim() || !form.city) {
       toast.error(t('common.required'))
+      return
+    }
+    if (!isValidPrZip(form.zip)) {
+      toast.error(t('customers.zipInvalid'))
       return
     }
     try {
@@ -138,21 +143,39 @@ export function CustomerFormDialog({
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label>{t('common.address')}</Label>
-            <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <Input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder={t('customers.addressPlaceholder')}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>City</Label>
-            <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+            <Label>{t('customers.municipality')}</Label>
+            <Select value={form.city} onValueChange={(v) => setForm({ ...form, city: v })}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('customers.selectMunicipality')} />
+              </SelectTrigger>
+              <SelectContent>
+                {PR_MUNICIPALITIES.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="flex gap-3">
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label>State</Label>
-              <Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
-            </div>
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label>ZIP</Label>
-              <Input value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value })} />
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>{t('customers.zip')}</Label>
+            <Input
+              value={form.zip}
+              onChange={(e) => setForm({ ...form, zip: e.target.value })}
+              placeholder="00926"
+              inputMode="numeric"
+              maxLength={10}
+            />
+            {form.zip.length > 0 && !isValidPrZip(form.zip) && (
+              <p className="text-xs text-destructive">{t('customers.zipInvalid')}</p>
+            )}
           </div>
           <div className="flex flex-col gap-1.5 sm:col-span-2">
             <Label>{t('customers.contact')}</Label>

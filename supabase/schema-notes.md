@@ -326,9 +326,19 @@ changes something worth auditing calls it: `update_route_status()`
   corrected address — and its "Navigate" link — shows up automatically
   without the driver needing to back out and reopen the stop.
 
-## Demo accounts
+## Team accounts
 
-Seeded directly into `auth.users` + `auth.identities` (password `Demo1234!`
-for all, hashed with `pgcrypto`): `owner@medroute.demo`,
-`gm@medroute.demo`, `dispatch@medroute.demo`, `staff@medroute.demo`,
-`driver1@medroute.demo`, `driver2@medroute.demo`, `driver3@medroute.demo`.
+There's no self-service sign-up. `invite_team_member(p_email, p_full_name,
+p_role, p_temp_password, p_phone)` is the only path an account is created
+through the app itself (Settings → Users & Roles → "Invite teammate").
+`security definer`, restricted to `is_manager()` (owner/general_manager);
+only an owner can invite another owner. It inserts directly into
+`auth.users` + `auth.identities` (the same shape as a normal Supabase Auth
+signup — email pre-confirmed, password hashed with `pgcrypto`), which fires
+the existing `handle_new_user()` trigger to create the `profiles` row, then
+makes that row's `role`/`full_name`/`phone` explicit; for `role = 'driver'`
+it also inserts a starter `drivers` row (`off_duty`, `car`, uncertified —
+edited afterward from the Drivers page). Refuses a duplicate email or a
+password under 8 characters. The generated/entered password is shown to
+the inviting user exactly once in the dialog — it's never stored anywhere
+except as the account's (hashed) `auth.users.encrypted_password`.

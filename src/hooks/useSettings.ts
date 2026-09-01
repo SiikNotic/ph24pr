@@ -96,3 +96,29 @@ export function useUpdateMemberRole() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['team_members'] }),
   })
 }
+
+// Provisions a real Supabase Auth account for a new teammate — there's no
+// self-service sign-up, so this is the only way an account comes to exist
+// besides creating one by hand in Supabase. See invite_team_member() in
+// supabase/schema-notes.md: security-definer, restricted to owner/general
+// manager, inserts directly into auth.users/auth.identities.
+export function useInviteTeamMember() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { email: string; fullName: string; role: string; tempPassword: string; phone?: string }) => {
+      const { data, error } = await supabase.rpc('invite_team_member', {
+        p_email: input.email,
+        p_full_name: input.fullName,
+        p_role: input.role,
+        p_temp_password: input.tempPassword,
+        p_phone: input.phone || null,
+      })
+      if (error) throw error
+      return data as string
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team_members'] })
+      qc.invalidateQueries({ queryKey: ['drivers'] })
+    },
+  })
+}

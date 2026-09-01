@@ -74,7 +74,7 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
         customerId: customer.id,
         customerName: customer.name,
         customerPhone: customer.contactPhone,
-        address: `${customer.address}, ${customer.city}, ${customer.state}`,
+        address: `${customer.address}, ${customer.city}, PR ${customer.zip}`,
         priority,
         packageCount,
         isControlledSubstance: controlled,
@@ -141,7 +141,7 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
                       >
                         <span className="font-medium">{c.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          {c.address}, {c.city}, {c.state}
+                          {c.address}, {c.city}, PR {c.zip}
                         </span>
                       </button>
                     ))
@@ -163,7 +163,7 @@ export function AddDeliveryDialog({ routeId, nextSequence }: { routeId: string; 
                 <div>
                   <p className="text-sm font-medium">{customer.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {customer.address}, {customer.city}, {customer.state}
+                    {customer.address}, {customer.city}, PR {customer.zip}
                   </p>
                 </div>
               </div>

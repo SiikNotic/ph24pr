@@ -89,7 +89,9 @@ export default function Customers() {
                   {can('customers', 'edit') && <CustomerFormDialog customer={c} />}
                 </div>
 
-                <p className="text-sm text-muted-foreground">{c.address}, {c.city}, {c.state}</p>
+                <p className="text-sm text-muted-foreground">
+                  {c.address}, {c.city}, PR {c.zip}
+                </p>
 
                 {(c.contactPhone || c.contactEmail) && (
                   <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">

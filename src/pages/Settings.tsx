@@ -24,6 +24,7 @@ import {
 import { useUIStore } from '@/store/ui'
 import { ROLE_LABELS } from '@/lib/permissions'
 import { initials } from '@/lib/format'
+import { InviteTeamMemberDialog } from '@/components/settings/InviteTeamMemberDialog'
 import type { Role } from '@/types/domain'
 
 const ROLES: Role[] = ['owner', 'general_manager', 'dispatch', 'staff', 'driver']
@@ -290,9 +291,12 @@ export default function Settings() {
         {can('settings', 'manage_users') && (
           <TabsContent value="users">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">{t('settings.users')}</CardTitle>
-                <CardDescription>{t('settings.manageRoles')}</CardDescription>
+              <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
+                <div>
+                  <CardTitle className="text-base">{t('settings.users')}</CardTitle>
+                  <CardDescription>{t('settings.manageRoles')}</CardDescription>
+                </div>
+                <InviteTeamMemberDialog canInviteOwner={isOwner} />
               </CardHeader>
               <CardContent className="flex flex-col divide-y divide-border">
                 {members.map((m: any) => (
