@@ -113,6 +113,50 @@ Every table has RLS enabled. Helper functions (`security definer`):
 - `is_ops()` — owner/general_manager/dispatch.
 - `is_back_office()` — owner/general_manager/dispatch/staff.
 
+`is_manager()`/`is_ops()`/`is_back_office()` explicitly `coalesce(..., false)` —
+never return `NULL`. This matters more than it looks: every mutating RPC
+below guards itself with `if not is_x() then raise exception`, and in
+plpgsql `not null` is `null`, and `if null then` is treated as *false* —
+the raise silently never fires. Coalescing to a real boolean here closes
+that whole class of bug at the source, for every current and future RPC
+that uses these helpers, not just the ones already found and fixed (below).
+
+**EXECUTE grants — anon must never hold one on a mutating RPC.** Every
+`security definer` RPC below bypasses RLS entirely (that's the point of
+`security definer`), so the *only* thing standing between an anonymous,
+never-logged-in caller and a full read/write on the underlying tables is
+whether Postgres lets them call the function at all. `CREATE FUNCTION`
+grants `EXECUTE` to the implicit `PUBLIC` pseudo-role by default, which
+`anon` inherits like any other role — `revoke ... from anon` alone is a
+no-op if the grant actually lives on `PUBLIC`; it has to be revoked `from
+public` explicitly, then re-granted to `authenticated`. An audit of this
+project on 2026-09-01 found every mutating RPC below still `EXECUTE`-able
+by `anon` this way, which combined with the `NULL`-bypass above meant an
+anonymous caller (nothing but the public anon key, no account at all)
+could call e.g. `update_route_status`, `reassign_route_driver`,
+`resolve_return`, `scan_package`, `complete_delivery`, or read a delivery
+PIN via `get_delivery_pin`, directly against `/rest/v1/rpc/<fn>` — fully
+bypassing the app's role checks. (Table-level access itself was not
+exploitable the same way: RLS treats a `NULL` qual result as deny, not
+bypass, so plain `GET/POST/PATCH` against a table was already safe as
+long as its policies are scoped to `authenticated`.) Fixed by revoking
+`EXECUTE` from `PUBLIC` and granting it only to `authenticated` on every
+RPC that mutates data or reads something sensitive (all of them except
+`create_time_off_request`, which already guarded itself correctly with an
+explicit `if v_role is null` check). Verify with
+`has_function_privilege('anon', 'public.<fn>(<argtypes>)', 'EXECUTE')` —
+it must return `false` for all of these; `aclexplode(proacl)` joined
+against `pg_roles` will *silently drop the PUBLIC row* (its grantee oid
+doesn't match any real role) and looks clean even when it isn't — don't
+trust that check alone.
+
+The same audit found six functions (`get_user_role`, `has_permission`,
+`increment_anime_views`, `is_user_banned`, `log_audit`,
+`protect_profile_fields`) left over from an unrelated app that previously
+occupied this Supabase project (see the old `create_anistream_schema`/
+`drop_legacy_schema` migrations) — dead code, not referenced by any
+MedRoute table/trigger, also anon-`EXECUTE`-able. Dropped entirely.
+
 Policy shape, per table:
 
 - `customers`, `drivers`, `availability`, `help_articles`, `org_settings` —
