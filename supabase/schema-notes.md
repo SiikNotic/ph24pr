@@ -296,20 +296,29 @@ changes something worth auditing calls it: `update_route_status()`
 - `scan_package(p_package_id, p_qr_payload)` — restricted to the package's
   route's assigned driver. Stamps `packages.scanned_at` and sets
   `packages.status = 'scanned'` only if `p_qr_payload` matches the
-  package's own `qr_payload` exactly, logs the scan, and — once every
+  package's own `qr_payload` exactly, logs the scan (against the
+  package's actual previous status — see below), and — once every
   sibling package for the stop has been scanned — advances the stop itself
-  to `scanned` too.
+  to `scanned` too. Has no route/stop-status precondition of its own, which
+  is what makes it safe to reuse for pre-route package *loading* (below) —
+  a driver can scan a package while the route is still `assigned`, not
+  just at the door after it goes `active`. Also clears
+  `load_issue_reported_at`/`load_issue_reason`/`load_issue_notes` if the
+  package had been flagged missing and is now found.
 - `complete_delivery(p_stop_id, p_entered_pin, p_recipient_name,
   p_signature_data, p_photo_data, p_leave_location)` — restricted to the
   stop's route's assigned driver. Re-validates everything server-side
   regardless of what the UI already checked: every package for the stop
-  has `scanned_at` set, and the proof matches the stop's `delivery_method`
-  (`pin_required` compares `p_entered_pin` to the stored `delivery_pin`;
-  `signature_required` needs a name + signature; `leave_at_location` needs
-  a photo + location; `in_hand` needs a photo only if
-  `org_settings.require_photo_for_in_hand` is on). Only then does it set
-  `status = 'delivered'` on the stop and mirror it onto every one of its
-  packages, and logs the completion.
+  has either `scanned_at` set *or* `load_issue_reported_at` set (a package
+  flagged missing at loading can never be scanned at the door, so it must
+  still count as "accounted for" here — see below), and the proof matches
+  the stop's `delivery_method` (`pin_required` compares `p_entered_pin` to
+  the stored `delivery_pin`; `signature_required` needs a name +
+  signature; `leave_at_location` needs a photo + location; `in_hand` needs
+  a photo only if `org_settings.require_photo_for_in_hand` is on). Only
+  then does it set `status = 'delivered'` on the stop and mirror it onto
+  every one of its non-missing packages (a missing package is never
+  marked delivered — no fake delivery record), and logs the completion.
 - `get_delivery_pin(p_stop_id)` — restricted to `is_back_office()` (never a
   driver), so whoever created the delivery can relay the PIN to the
   recipient without the driver ever seeing it.
@@ -317,6 +326,54 @@ changes something worth auditing calls it: `update_route_status()`
   `src/hooks/usePackages.ts`) at the same time as the delivery/packages are
   created, by whoever is creating it (dispatch/staff/managers) — never by
   the driver, and never regenerated afterwards.
+
+## Package loading, missing-package handling, and live driver location
+
+- The driver app scans every package onto the vehicle *before* the route
+  goes `active` (the "package loading" step of Start Route) using the same
+  `scan_package()` above — there is no separate "loading" RPC. Only once
+  the route's config-gated threshold is met (below) does the client call
+  `update_route_status(route_id, 'active')`, the same RPC dispatch/managers
+  already use.
+- `report_package_missing(p_package_id, p_reason, p_notes)` — restricted
+  to the package's route's assigned driver. The only writer of
+  `packages.load_issue_reported_at`/`load_issue_reason`/`load_issue_notes`
+  — three columns denormalized directly on `packages`, the same pattern as
+  `route_stops.address_issue_flagged_at`/`address_issue_notes`. Never
+  creates a duplicate package or delivery: it only stamps those three
+  columns on the existing row. Logs `package_load_issue_reported` to
+  `audit_log` (a new `audit_action` enum value) and notifies
+  dispatch/general_manager/owner immediately, same as
+  `report_address_issue()`.
+- `org_settings.require_all_packages_scanned` (boolean, default `true`) —
+  company-wide config for whether a driver can start a route while a
+  package is reported missing (`false`: scanned-or-missing both count
+  toward "all packages loaded") or every package must be physically
+  scanned first (`true`, the default: a missing report is still recorded
+  and dispatch is still notified, but it does not unblock Start Route —
+  dispatch has to resolve it). Editable in Settings → package loading.
+- **`driver_locations`** — one row per driver (a live/last-known GPS
+  pointer, not a track-history log), written only by
+  `update_driver_location(p_lat, p_lng, p_heading, p_speed, p_accuracy)`
+  — restricted to a caller with a `drivers` row, upserts their own row
+  (including whichever of their routes is currently `active` or
+  `returning_to_station`, if any) and is deliberately **not** logged to
+  `audit_log`: GPS pings are high-frequency telemetry, not an auditable
+  business event like everything else in this document. RLS: back-office
+  roles see every row (the dispatch fleet map); a driver sees only their
+  own. No insert/update/delete policies — the RPC is the only writer.
+- **New-function EXECUTE grants, a second gotcha beyond the PUBLIC one
+  above:** this Supabase project's *default privileges* grant `EXECUTE`
+  to `anon` directly (not merely via the implicit `PUBLIC` inheritance
+  already documented above) on every newly created function — confirmed
+  via `select proacl from pg_proc` showing an explicit `anon=X/postgres`
+  entry on `update_driver_location`/`report_package_missing` immediately
+  after creation, even after `revoke all ... from public`. `revoke
+  execute on function ... from anon` (in addition to the `from public`
+  revoke) was required to actually close it, then re-verified with
+  `has_function_privilege('anon', ..., 'EXECUTE')` returning `false`. Any
+  future new RPC must explicitly revoke from **both** `public` and `anon`
+  — checking only one is not sufficient on this project.
 
 ## Failed-delivery handling
 
