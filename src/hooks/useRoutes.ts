@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { mapRoute } from '@/lib/mappers'
-import type { RouteStatus, StopStatus } from '@/types/domain'
+import { mapRoute, mapAssignmentEvent } from '@/lib/mappers'
+import type { ReassignmentReason, RouteStatus, StopStatus } from '@/types/domain'
 
 const ROUTE_SELECT = '*, drivers(id, profiles(full_name)), route_stops(*)'
 
@@ -67,38 +67,57 @@ export function useConfirmRoute() {
   })
 }
 
-export function useAssignDriver() {
+// The only way a route's driver ever changes — whether it's the first
+// assignment after confirming a route, or reassigning a live route to a
+// new driver. It never touches route_stops or packages: existing scanned
+// packages, delivery history, and progress all carry over untouched. The
+// database (reassign_route_driver RPC) atomically flips routes.driver_id,
+// writes an audit row to route_assignment_history, and notifies both the
+// outgoing and incoming driver — see supabase/schema-notes.md.
+export function useReassignDriver() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({
       routeId,
-      routeName,
       driverId,
-      driverProfileId,
+      reason = 'operational_change',
+      notes,
     }: {
       routeId: string
-      routeName?: string
       driverId: string | null
-      driverProfileId?: string | null
+      reason?: ReassignmentReason
+      notes?: string
     }) => {
-      const { error } = await supabase.from('routes').update({ driver_id: driverId }).eq('id', routeId)
+      const { data, error } = await supabase.rpc('reassign_route_driver', {
+        p_route_id: routeId,
+        p_new_driver_id: driverId,
+        p_reason: reason,
+        p_notes: notes || null,
+      })
       if (error) throw error
-
-      // The driver never has to accept anything — assigning is enough for
-      // the route to show up in their app. A notification just surfaces it.
-      if (driverId && driverProfileId) {
-        await supabase.from('notifications').insert({
-          type: 'route_assigned',
-          title: 'New route assigned',
-          body: routeName ? `${routeName} has been assigned to you.` : 'A new route has been assigned to you.',
-          target_user_id: driverProfileId,
-        })
-      }
+      return data
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['routes'] })
       qc.invalidateQueries({ queryKey: ['route', variables.routeId] })
       qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['route_assignment_history', variables.routeId] })
+    },
+  })
+}
+
+export function useRouteAssignmentHistory(routeId: string | undefined) {
+  return useQuery({
+    queryKey: ['route_assignment_history', routeId],
+    enabled: !!routeId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('route_assignment_history')
+        .select('*')
+        .eq('route_id', routeId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data.map(mapAssignmentEvent)
     },
   })
 }

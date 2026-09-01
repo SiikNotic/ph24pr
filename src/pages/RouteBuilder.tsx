@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useRoute, useConfirmRoute, useAssignDriver } from '@/hooks/useRoutes'
+import { useRoute, useConfirmRoute, useReassignDriver } from '@/hooks/useRoutes'
 import { usePackages } from '@/hooks/usePackages'
 import { useRemoveDelivery } from '@/hooks/usePackages'
 import { useDrivers } from '@/hooks/useDrivers'
@@ -44,7 +44,7 @@ export default function RouteBuilder() {
   const { data: drivers = [] } = useDrivers()
   const removeDelivery = useRemoveDelivery()
   const confirmRoute = useConfirmRoute()
-  const assignDriver = useAssignDriver()
+  const reassignDriver = useReassignDriver()
 
   const isDraft = route?.status === 'draft'
   const allPrinted = packages.length > 0 && packages.every((p) => p.labelPrinted)
@@ -83,11 +83,10 @@ export default function RouteBuilder() {
     if (!routeId || !route) return
     const driver = drivers.find((d) => d.id === driverId)
     try {
-      await assignDriver.mutateAsync({
+      await reassignDriver.mutateAsync({
         routeId,
-        routeName: route.name,
         driverId,
-        driverProfileId: driver?.profileId,
+        reason: route.driverId ? 'operational_change' : 'initial_assignment',
       })
       toast.success(t('routeBuilder.routeAssigned', { driver: driver?.fullName }))
     } catch (e: any) {

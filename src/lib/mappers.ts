@@ -5,6 +5,7 @@ import type {
   DeliveryRoute,
   RouteStop,
   Package,
+  RouteAssignmentEvent,
   ReturnItem,
   AvailabilityEntry,
   AppNotification,
@@ -106,6 +107,23 @@ export function mapPackage(row: any): Package {
     labelPrinted: row.label_printed,
     printedAt: row.printed_at ?? undefined,
     printCount: row.print_count,
+    createdAt: row.created_at,
+  }
+}
+
+export function mapAssignmentEvent(row: any): RouteAssignmentEvent {
+  return {
+    id: row.id,
+    routeId: row.route_id,
+    previousDriverId: row.previous_driver_id ?? undefined,
+    previousDriverName: row.previous_driver_name ?? undefined,
+    newDriverId: row.new_driver_id ?? undefined,
+    newDriverName: row.new_driver_name ?? undefined,
+    changedBy: row.changed_by ?? undefined,
+    changedByName: row.changed_by_name ?? undefined,
+    routeStatus: row.route_status,
+    reason: row.reason,
+    notes: row.notes ?? undefined,
     createdAt: row.created_at,
   }
 }

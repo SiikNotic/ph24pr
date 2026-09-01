@@ -18,9 +18,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { StatusBadge, PriorityBadge } from '@/components/shared/StatusBadge'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAuthStore } from '@/store/auth'
-import { useAssignDriver, useUpdateRouteStatus, useUpdateStop } from '@/hooks/useRoutes'
+import { useUpdateRouteStatus, useUpdateStop } from '@/hooks/useRoutes'
 import { useCreateReturn } from '@/hooks/useReturns'
-import { useDrivers } from '@/hooks/useDrivers'
+import { ReassignDriverDialog } from '@/components/routes/ReassignDriverDialog'
+import { AssignmentHistoryList } from '@/components/routes/AssignmentHistoryList'
 import type { DeliveryRoute, ReturnReason, RouteStop } from '@/types/domain'
 import { formatDate } from '@/lib/format'
 
@@ -35,8 +36,6 @@ export function RouteDetailSheet({
 }) {
   const { t, i18n } = useTranslation()
   const { can, isDriver } = usePermissions()
-  const { data: drivers = [] } = useDrivers()
-  const assignDriver = useAssignDriver()
   const updateRouteStatus = useUpdateRouteStatus()
   const [issueStop, setIssueStop] = useState<RouteStop | null>(null)
   const [deliverStop, setDeliverStop] = useState<RouteStop | null>(null)
@@ -44,6 +43,7 @@ export function RouteDetailSheet({
   if (!route) return null
 
   const canManage = can('routes', 'assign')
+  const canReassign = canManage && (route.status === 'scheduled' || route.status === 'in_progress')
 
   return (
     <>
@@ -61,31 +61,10 @@ export function RouteDetailSheet({
 
           {canManage && (
             <div className="mt-4 flex flex-col gap-2 rounded-lg border border-border p-3">
-              <Label className="text-xs text-muted-foreground">{t('routes.assignDriver')}</Label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={route.driverId ?? 'unassigned'}
-                  onValueChange={(v) =>
-                    assignDriver.mutate({
-                      routeId: route.id,
-                      routeName: route.name,
-                      driverId: v === 'unassigned' ? null : v,
-                      driverProfileId: drivers.find((d) => d.id === v)?.profileId,
-                    })
-                  }
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder={t('common.unassigned')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">{t('common.unassigned')}</SelectItem>
-                    {drivers.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.fullName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <Label className="text-xs text-muted-foreground">{t('routes.driver')}</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="flex-1 text-sm font-medium">{route.driverName ?? t('common.unassigned')}</p>
+                {canReassign && <ReassignDriverDialog route={route} />}
                 {route.status === 'scheduled' && (
                   <Button
                     size="sm"
@@ -105,6 +84,7 @@ export function RouteDetailSheet({
                   </Button>
                 )}
               </div>
+              <AssignmentHistoryList routeId={route.id} />
             </div>
           )}
 

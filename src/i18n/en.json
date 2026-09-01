@@ -189,6 +189,24 @@
     "routeLiveForDriver": "Live in {{driver}}'s app now.",
     "backToRoutes": "Back to Routes"
   },
+  "reassignment": {
+    "reassignDriver": "Reassign Driver",
+    "currentDriver": "Currently assigned to {{driver}}",
+    "newDriver": "New driver",
+    "reason": "Reason",
+    "changedBy": "By {{user}} · {{date}}",
+    "history": "Assignment History",
+    "unassigned": "Driver unassigned",
+    "reasons": {
+      "initial_assignment": "Initial assignment",
+      "driver_unavailable": "Driver unavailable",
+      "shift_ended": "Shift ended",
+      "early_leave": "Driver left early",
+      "route_abandoned": "Route abandoned",
+      "operational_change": "Operational change",
+      "other": "Other"
+    }
+  },
   "status": {
     "draft": "Draft",
     "scheduled": "Scheduled",

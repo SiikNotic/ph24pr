@@ -189,6 +189,24 @@
     "routeLiveForDriver": "Ya está disponible en la aplicación de {{driver}}.",
     "backToRoutes": "Volver a Rutas"
   },
+  "reassignment": {
+    "reassignDriver": "Reasignar Conductor",
+    "currentDriver": "Actualmente asignado a {{driver}}",
+    "newDriver": "Nuevo conductor",
+    "reason": "Motivo",
+    "changedBy": "Por {{user}} · {{date}}",
+    "history": "Historial de Asignaciones",
+    "unassigned": "Conductor sin asignar",
+    "reasons": {
+      "initial_assignment": "Asignación inicial",
+      "driver_unavailable": "Conductor no disponible",
+      "shift_ended": "Turno terminado",
+      "early_leave": "Conductor salió temprano",
+      "route_abandoned": "Ruta abandonada",
+      "operational_change": "Cambio operativo",
+      "other": "Otro"
+    }
+  },
   "status": {
     "draft": "Borrador",
     "scheduled": "Programada",

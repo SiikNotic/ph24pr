@@ -30,6 +30,20 @@ Creating a route is a guided, three-step process (Routes → New Route):
    the route, then assigns a driver. The driver never has to accept
    anything: as soon as they're assigned, the route shows up in their app.
 
+## Reassigning a route
+
+Dispatch, General Managers, and Owners can reassign a **confirmed or
+active** route to a different driver at any time — a driver calling in
+sick, going unavailable, leaving early, abandoning the route, or another
+driver simply taking over. Open the route → "Reassign Driver", pick the new
+driver and a reason. The new driver takes over exactly where the route
+stands: scanned packages, completed deliveries, and all progress carry over
+untouched — nothing is reset, no duplicate package or route is ever
+created. Every change (previous driver, new driver, who made it, when, and
+the route's status at the time) is recorded in the route's Assignment
+History, enforced at the database level by a dedicated
+`reassign_route_driver()` function rather than a plain client-side update.
+
 ## Getting started
 
 ```bash

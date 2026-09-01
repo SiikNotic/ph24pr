@@ -28,6 +28,11 @@ the exact value sets, which mirror these one-to-one.
   `print_count` track printing; reprinting only ever updates these fields
   on the existing row (see `increment_package_print()` below) — it never
   inserts a new package.
+- **route_assignment_history** — append-only audit trail of every
+  driver_id change on a route (previous/new driver, who made the change,
+  when, the route's status at that moment, and a reason). The only writer
+  is `reassign_route_driver()` (below) — there are no insert/update/delete
+  RLS policies, so the client can never touch it directly.
 - **returns** — failed/returned deliveries, linked back to a stop/route.
 - **availability** — per-driver, per-day shift/time-off calendar.
 - **notifications** — targeted at `target_user_id` OR broadcast to
@@ -75,6 +80,19 @@ confirmed" at the database level, not just in the UI:
 - `routes_check_labels_before_confirm` — a `before update` trigger on
   `routes` that raises an exception if a route is moved out of `draft`
   while any of its packages still has `label_printed = false`.
+
+## Route reassignment
+
+`reassign_route_driver(p_route_id, p_new_driver_id, p_reason, p_notes)` is
+the *only* path that ever changes `routes.driver_id` — used for both the
+first assignment after confirming a route and reassigning a confirmed or
+active route (driver called in sick, abandoned the route, another driver
+takes over, etc). Restricted to `is_ops()` (owner/general_manager/
+dispatch). In one transaction it: locks the route row, flips `driver_id`,
+writes one row to `route_assignment_history`, and notifies the outgoing and
+incoming driver. It never touches `route_stops` or `packages` — scanned
+packages, delivery history, and progress carry over untouched, and no new
+route or duplicate package is ever created.
 
 ## Demo accounts
 

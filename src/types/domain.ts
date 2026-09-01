@@ -96,6 +96,30 @@ export interface Package {
   createdAt: string
 }
 
+export type ReassignmentReason =
+  | 'initial_assignment'
+  | 'driver_unavailable'
+  | 'shift_ended'
+  | 'early_leave'
+  | 'route_abandoned'
+  | 'operational_change'
+  | 'other'
+
+export interface RouteAssignmentEvent {
+  id: string
+  routeId: string
+  previousDriverId?: string
+  previousDriverName?: string
+  newDriverId?: string
+  newDriverName?: string
+  changedBy?: string
+  changedByName?: string
+  routeStatus: RouteStatus
+  reason: ReassignmentReason
+  notes?: string
+  createdAt: string
+}
+
 export interface DeliveryRoute {
   id: string
   name: string
