@@ -138,7 +138,6 @@ export default function Settings() {
           <TabsTrigger value="general">{t('settings.general')}</TabsTrigger>
           {can('settings', 'manage_users') && <TabsTrigger value="users">{t('settings.users')}</TabsTrigger>}
           <TabsTrigger value="appearance">{t('settings.appearance')}</TabsTrigger>
-          {isOwner && <TabsTrigger value="danger">{t('settings.dangerZone')}</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="general">
@@ -433,17 +432,6 @@ export default function Settings() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {isOwner && (
-          <TabsContent value="danger">
-            <Card className="max-w-xl border-destructive/30">
-              <CardHeader>
-                <CardTitle className="text-base text-destructive">{t('settings.dangerZone')}</CardTitle>
-                <CardDescription>{t('common.comingSoon')}</CardDescription>
-              </CardHeader>
-            </Card>
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   )
